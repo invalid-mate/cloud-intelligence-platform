@@ -1,54 +1,40 @@
-const axios = require("axios");
+// metricsService.js
 
-const PROMETHEUS_URL = "http://localhost:9090/api/v1/query";
-const AI_ENGINE_URL = "http://localhost:8000/analyze";
+const getRandomValue = (min, max) => {
+  return Math.floor(Math.random() * (max - min) + min);
+};
 
-async function getCpuMetrics() {
-  try {
+const getCpuMetrics = async () => {
+  return {
+    metric: "cpu",
+    value: getRandomValue(20, 85)
+  };
+};
 
-    console.log("Querying Prometheus...");
+const getMemoryMetrics = async () => {
+  return {
+    metric: "memory",
+    value: getRandomValue(30, 60)
+  };
+};
 
-    const response = await axios.get(PROMETHEUS_URL, {
-      params: {
-        query: '100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)'
-      }
-    });
+const getNetworkMetrics = async () => {
+  return {
+    metric: "network",
+    value: getRandomValue(100, 900)
+  };
+};
 
-    const results = response.data.data.result;
-
-    if (!results || results.length === 0) {
-      return {
-        error: "No CPU metrics found"
-      };
-    }
-
-    const cpuValue = parseFloat(results[0].value[1]);
-
-    console.log("CPU VALUE:", cpuValue);
-
-    const aiResponse = await axios.get(AI_ENGINE_URL, {
-      params: {
-        metric: "cpu",
-        value: cpuValue
-      }
-    });
-
-    return {
-      cpu: cpuValue,
-      ai_analysis: aiResponse.data
-    };
-
-  } catch (error) {
-
-    console.error("METRICS ERROR:", error.message);
-
-    return {
-      error: "Failed to fetch CPU metrics"
-    };
-
-  }
-}
+const getDiskMetrics = async () => {
+  return {
+    metric: "disk",
+    value: getRandomValue(40, 300)
+  };
+};
 
 module.exports = {
-  getCpuMetrics
+  getCpuMetrics,
+  getMemoryMetrics,
+  getNetworkMetrics,
+  getDiskMetrics
 };
