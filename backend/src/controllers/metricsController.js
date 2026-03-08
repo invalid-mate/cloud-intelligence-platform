@@ -1,26 +1,49 @@
-const axios = require("axios");
+const {
+  getCpuMetrics,
+  getMemoryMetrics,
+  getNetworkMetrics,
+  getDiskMetrics
+} = require("../services/metricsService");
 
-/*
-Use ENV variable for Prometheus URL
-*/
-const PROMETHEUS_URL =
-  process.env.PROMETHEUS_URL || "http://localhost:9090";
-
-exports.getCpuMetrics = async (req, res) => {
+const cpuMetrics = async (req, res) => {
   try {
-
-    const response = await axios.get(
-      `${PROMETHEUS_URL}/api/v1/query?query=node_cpu_seconds_total`
-    );
-
-    res.json(response.data);
-
+    const data = await getCpuMetrics();
+    res.json(data);
   } catch (error) {
-
-    console.error("Prometheus error:", error.message);
-
-    res.status(500).json({
-      error: "Failed to fetch CPU metrics",
-    });
+    res.status(500).json({ error: "Failed to fetch CPU metrics" });
   }
+};
+
+const memoryMetrics = async (req, res) => {
+  try {
+    const data = await getMemoryMetrics();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch memory metrics" });
+  }
+};
+
+const networkMetrics = async (req, res) => {
+  try {
+    const data = await getNetworkMetrics();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch network metrics" });
+  }
+};
+
+const diskMetrics = async (req, res) => {
+  try {
+    const data = await getDiskMetrics();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch disk metrics" });
+  }
+};
+
+module.exports = {
+  cpuMetrics,
+  memoryMetrics,
+  networkMetrics,
+  diskMetrics
 };
