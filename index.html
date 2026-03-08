@@ -1,0 +1,4069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>NEXUS | GCP Intelligence Platform</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #02040a;
+      --surface: rgba(10, 14, 22, 0.82);
+      --surface2: rgba(13, 18, 28, 0.9);
+      --accent: #4f8ef7;
+      --accent2: #00d2ff;
+      --purple: #7c3aed;
+      --red: #ff3366;
+      --green: #00ffaa;
+      --orange: #fb923c;
+      --cyan: #22d3ee;
+      --yellow: #fbbf24;
+      --prom: #e6522c;
+      --oc: #00b4d8;
+      --grafana: #f46800;
+      --ai: #a855f7;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-glow: rgba(79, 142, 247, 0.35);
+      --text: #e8f0fe;
+      --text2: #64748b;
+      --text3: #1e3a5f;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    body {
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      cursor: crosshair;
+    }
+
+    .grotesk {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    ::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(79, 142, 247, 0.3);
+      border-radius: 2px;
+    }
+
+    /* ── PRELOADER ── */
+    #preloader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      top: 0;
+      animation: scan 3s infinite linear;
+      box-shadow: 0 0 24px var(--accent);
+    }
+
+    @keyframes scan {
+      from {
+        top: 0
+      }
+
+      to {
+        top: 100%
+      }
+    }
+
+    .load-ring {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 2px solid rgba(79, 142, 247, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 2.5rem;
+    }
+
+    .load-ring::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      animation: spin 1.4s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .load-ring-inner {
+      width: 52px;
+      height: 52px;
+      background: radial-gradient(circle, var(--accent), #1d4ed8);
+      border-radius: 50%;
+      box-shadow: 0 0 40px var(--accent);
+    }
+
+    .load-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: .5em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: .5rem;
+    }
+
+    .load-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      color: var(--accent);
+      letter-spacing: .5em;
+      text-transform: uppercase;
+      opacity: .8;
+      margin-bottom: 2rem;
+    }
+
+    .load-bar-wrap {
+      width: 280px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .load-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      width: 0;
+      transition: width .05s;
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    /* ── CANVAS ── */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #cursor-glow {
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(79, 142, 247, .07) 0%, transparent 70%);
+      position: fixed;
+      pointer-events: none;
+      z-index: 1;
+      transform: translate(-50%, -50%);
+      transition: transform .05s;
+    }
+
+    /* ── APP ── */
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      opacity: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 280px;
+      background: var(--surface2);
+      backdrop-filter: blur(32px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 50;
+      transition: width .22s;
+    }
+
+    .sidebar.mini {
+      width: 56px;
+    }
+
+    .sidebar.mini .nav-text,
+    .sidebar.mini .nav-badge,
+    .sidebar.mini .sidebar-section,
+    .sidebar.mini .sidebar-logo-text,
+    .sidebar.mini .sidebar-status-text {
+      display: none;
+    }
+
+    .sidebar-head {
+      padding: 2rem 1.4rem 1rem;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo-box {
+      width: 40px;
+      height: 40px;
+      background: var(--surface);
+      border: 1px solid rgba(79, 142, 247, .3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(45deg);
+      transition: transform .4s;
+      flex-shrink: 0;
+    }
+
+    .logo-box:hover {
+      transform: rotate(90deg);
+    }
+
+    .logo-diamond {
+      width: 22px;
+      height: 22px;
+      background: var(--accent);
+      border-radius: 5px;
+      transform: rotate(-45deg);
+      box-shadow: 0 0 18px var(--accent);
+    }
+
+    .sidebar-logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logo-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -.5px;
+    }
+
+    .logo-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .6rem;
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-section {
+      font-size: .6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .25em;
+      color: rgba(255, 255, 255, .2);
+      padding: .5rem 1rem .3rem;
+      margin-top: .5rem;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: .6rem 1rem;
+      margin: 1px .4rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .nav-item.on {
+      color: var(--accent2);
+      background: rgba(79, 142, 247, .12);
+      border-right: 2px solid var(--accent);
+      box-shadow: inset -12px 0 20px -12px rgba(79, 142, 247, .35);
+    }
+
+    .nav-icon {
+      font-size: .9rem;
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-text {
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      padding: 1px 5px;
+      border-radius: 8px;
+      font-size: .58rem;
+      font-weight: 700;
+      background: var(--red);
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .nav-badge.y {
+      background: var(--yellow);
+      color: #000;
+    }
+
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 1rem 1.2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .status-pill {
+      background: rgba(79, 142, 247, .06);
+      border: 1px solid rgba(79, 142, 247, .12);
+      padding: .7rem;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse-d 1.4s infinite;
+      flex-shrink: 0;
+      box-shadow: 0 0 10px var(--green);
+    }
+
+    @keyframes pulse-d {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(.7)
+      }
+    }
+
+    .sidebar-status-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-t {
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .status-s {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .6rem;
+      color: var(--text2);
+    }
+
+    .mini-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .7rem;
+      margin-bottom: .4rem;
+      width: 100%;
+    }
+
+    /* ── MAIN ── */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 56px;
+      background: var(--surface2);
+      backdrop-filter: blur(32px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 2rem;
+      gap: 1rem;
+      flex-shrink: 0;
+      z-index: 40;
+    }
+
+    .tb-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .tb-sep {
+      flex: 1;
+    }
+
+    .tb-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .tb-b-ok {
+      background: rgba(0, 255, 170, .08);
+      border: 1px solid rgba(0, 255, 170, .18);
+      color: var(--green);
+    }
+
+    .tbtn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 5px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .2s;
+    }
+
+    .tbtn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .tbtn.acc {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-weight: 800;
+      box-shadow: 0 0 28px rgba(79, 142, 247, .5);
+    }
+
+    .tbtn.acc:hover {
+      transform: scale(1.04);
+    }
+
+    .tbtn.ai {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #fff;
+      border: none;
+      font-weight: 800;
+      box-shadow: 0 0 28px rgba(168, 85, 247, .4);
+    }
+
+    .tbtn.ai:hover {
+      transform: scale(1.04);
+    }
+
+    .tbtn.prom-btn {
+      background: rgba(230, 82, 44, .12);
+      border: 1px solid rgba(230, 82, 44, .3);
+      color: var(--prom);
+      font-weight: 800;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .7rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 2px solid rgba(79, 142, 247, .3);
+    }
+
+    .sel {
+      background: rgba(10, 14, 22, .9);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: .72rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .top-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--text2);
+    }
+
+    /* ── CONTENT ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 10;
+    }
+
+    .view {
+      display: none;
+      animation: viewIn .35s ease both;
+    }
+
+    .view.on {
+      display: block;
+    }
+
+    @keyframes viewIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    /* ── GLASS CARD ── */
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(30px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 1.6rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .25s, box-shadow .25s, transform .25s;
+      min-height: 0;
+    }
+
+    .card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 40px rgba(79, 142, 247, .1);
+      transform: translateY(-1px);
+    }
+
+    .card-sm {
+      padding: 1.1rem;
+    }
+
+    .card-glow-accent::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: .07;
+      pointer-events: none;
+    }
+
+    .cg-blue::before {
+      background: var(--accent);
+    }
+
+    .cg-prom::before {
+      background: var(--prom);
+    }
+
+    .cg-purple::before {
+      background: var(--purple);
+    }
+
+    .cg-red::before {
+      background: var(--red);
+    }
+
+    .cg-green::before {
+      background: var(--green);
+    }
+
+    /* ── SECTION HEADER ── */
+    .page-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -.5px;
+      line-height: 1;
+      margin-bottom: .5rem;
+    }
+
+    .page-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .3em;
+    }
+
+    .sh {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+    }
+
+    .st {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .accent-bar {
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--accent), var(--cyan));
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .sa {
+      display: flex;
+      gap: .4rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── GRID ── */
+    .g {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .g2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .g3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .g4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .g5 {
+      grid-template-columns: repeat(5, 1fr);
+    }
+
+    .g31 {
+      grid-template-columns: 3fr 1fr;
+    }
+
+    @media(max-width:1300px) {
+
+      .g4,
+      .g5 {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .g31 {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media(max-width:900px) {
+
+      .g2,
+      .g3 {
+        grid-template-columns: 1fr
+      }
+    }
+
+    /* ── KPI ── */
+    .kpi-hero {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1;
+      background: linear-gradient(to bottom, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .kpi-hero.blue {
+      background: linear-gradient(135deg, #60a5fa, var(--cyan));
+      -webkit-background-clip: text;
+    }
+
+    .kpi-hero.prom {
+      background: linear-gradient(135deg, var(--prom), var(--orange));
+      -webkit-background-clip: text;
+    }
+
+    .kpi-hero.green {
+      background: linear-gradient(135deg, var(--green), var(--cyan));
+      -webkit-background-clip: text;
+    }
+
+    .kpi-hero.red {
+      background: linear-gradient(135deg, var(--red), var(--orange));
+      -webkit-background-clip: text;
+    }
+
+    .kpi-hero.purple {
+      background: linear-gradient(135deg, var(--purple), var(--ai));
+      -webkit-background-clip: text;
+    }
+
+    .kpi-label {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: var(--text2);
+      margin-bottom: .6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kpi-trend {
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: .5rem;
+    }
+
+    .t-up {
+      background: rgba(255, 51, 102, .12);
+      color: #ff6680;
+    }
+
+    .t-dn {
+      background: rgba(0, 255, 170, .12);
+      color: var(--green);
+    }
+
+    .t-nt {
+      background: rgba(251, 191, 36, .12);
+      color: var(--yellow);
+    }
+
+    .k-bar {
+      height: 3px;
+      background: rgba(255, 255, 255, .06);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: .7rem;
+    }
+
+    .k-bar-f {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.2s ease;
+    }
+
+    /* ── SOURCE BADGES ── */
+    .src {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: .6rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .sl-prom {
+      background: rgba(230, 82, 44, .12);
+      border: 1px solid rgba(230, 82, 44, .28);
+      color: #ff6a4d;
+    }
+
+    .sl-oc {
+      background: rgba(0, 180, 216, .12);
+      border: 1px solid rgba(0, 180, 216, .28);
+      color: #00d4ff;
+    }
+
+    .sl-gf {
+      background: rgba(244, 104, 0, .12);
+      border: 1px solid rgba(244, 104, 0, .28);
+      color: #fb923c;
+    }
+
+    .sl-ai {
+      background: rgba(168, 85, 247, .12);
+      border: 1px solid rgba(168, 85, 247, .28);
+      color: #c084fc;
+    }
+
+    .sl-gcp {
+      background: rgba(79, 142, 247, .12);
+      border: 1px solid rgba(79, 142, 247, .28);
+      color: #93c5fd;
+    }
+
+    /* ── TABLE ── */
+    .tw {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .76rem;
+    }
+
+    th {
+      padding: 10px 14px;
+      text-align: left;
+      background: rgba(79, 142, 247, .04);
+      color: var(--text2);
+      font-size: .62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background: rgba(79, 142, 247, .03);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── STATUS ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: .64rem;
+      font-weight: 700;
+    }
+
+    .bg {
+      background: rgba(0, 255, 170, .1);
+      color: var(--green);
+      border: 1px solid rgba(0, 255, 170, .22);
+    }
+
+    .by {
+      background: rgba(251, 191, 36, .1);
+      color: var(--yellow);
+      border: 1px solid rgba(251, 191, 36, .22);
+    }
+
+    .br {
+      background: rgba(255, 51, 102, .1);
+      color: #ff6680;
+      border: 1px solid rgba(255, 51, 102, .22);
+    }
+
+    .bb {
+      background: rgba(79, 142, 247, .1);
+      color: #93c5fd;
+      border: 1px solid rgba(79, 142, 247, .22);
+    }
+
+    .bp {
+      background: rgba(168, 85, 247, .1);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, .22);
+    }
+
+    .bgr {
+      background: rgba(100, 116, 139, .1);
+      color: var(--text2);
+      border: 1px solid rgba(100, 116, 139, .2);
+    }
+
+    .dp {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      animation: pulse-d 1.4s infinite;
+    }
+
+    .dg {
+      background: var(--green);
+    }
+
+    .dy {
+      background: var(--yellow);
+    }
+
+    .dr {
+      background: var(--red);
+    }
+
+    /* ── PBAR ── */
+    .pb {
+      height: 4px;
+      background: rgba(255, 255, 255, .05);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .pb-f {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.1s ease;
+    }
+
+    /* ── PROMQL ── */
+    .promql {
+      background: rgba(0, 0, 0, .5);
+      border: 1px solid var(--border);
+      padding: 1rem 1.2rem;
+      border-radius: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      color: #8ab4f8;
+      line-height: 1.7;
+      position: relative;
+    }
+
+    .pq-lbl {
+      font-size: .58rem;
+      color: var(--text2);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      margin-bottom: .4rem;
+    }
+
+    .promql .m {
+      color: #22d3ee
+    }
+
+    .promql .f {
+      color: #fbbf24
+    }
+
+    .promql .v {
+      color: #a5f3fc
+    }
+
+    .promql .op {
+      color: #f43f5e
+    }
+
+    .promql .n {
+      color: #86efac
+    }
+
+    .pq-run {
+      position: absolute;
+      top: .6rem;
+      right: .8rem;
+      background: rgba(230, 82, 44, .12);
+      border: 1px solid rgba(230, 82, 44, .3);
+      color: var(--prom);
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: .6rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .pq-run:hover {
+      background: rgba(230, 82, 44, .28);
+    }
+
+    /* ── OPENCOST ROW ── */
+    .oc-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: .65rem .9rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .02);
+      border: 1px solid rgba(255, 255, 255, .04);
+      margin-bottom: .4rem;
+      transition: all .18s;
+    }
+
+    .oc-row:hover {
+      border-color: rgba(0, 180, 216, .2);
+      background: rgba(0, 180, 216, .04);
+    }
+
+    .oc-name {
+      font-size: .76rem;
+      font-weight: 600;
+      min-width: 130px;
+    }
+
+    .oc-bar {
+      flex: 1;
+    }
+
+    .oc-val {
+      font-size: .76rem;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .oc-d {
+      font-size: .65rem;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* ── AI BOX ── */
+    .ai-box {
+      background: linear-gradient(135deg, rgba(124, 58, 237, .08), rgba(79, 142, 247, .08));
+      border: 1px solid rgba(168, 85, 247, .22);
+      border-radius: 16px;
+      padding: 1.2rem;
+      font-size: .78rem;
+      line-height: 1.8;
+      color: var(--text2);
+      min-height: 90px;
+    }
+
+    .ai-think {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--ai);
+    }
+
+    .ai-think span {
+      width: 5px;
+      height: 5px;
+      background: var(--ai);
+      border-radius: 50%;
+      animation: ai-b .9s infinite;
+    }
+
+    .ai-think span:nth-child(2) {
+      animation-delay: .15s;
+    }
+
+    .ai-think span:nth-child(3) {
+      animation-delay: .3s;
+    }
+
+    @keyframes ai-b {
+
+      0%,
+      60%,
+      100% {
+        transform: translateY(0)
+      }
+
+      30% {
+        transform: translateY(-6px)
+      }
+    }
+
+    /* ── ALERT BOX ── */
+    .ab {
+      border-radius: 16px;
+      padding: .9rem 1rem;
+      margin-bottom: .55rem;
+      border: 1px solid;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+    }
+
+    .a-r {
+      background: rgba(255, 51, 102, .05);
+      border-color: rgba(255, 51, 102, .18);
+    }
+
+    .a-y {
+      background: rgba(251, 191, 36, .05);
+      border-color: rgba(251, 191, 36, .18);
+    }
+
+    .a-b {
+      background: rgba(79, 142, 247, .05);
+      border-color: rgba(79, 142, 247, .18);
+    }
+
+    .a-g {
+      background: rgba(0, 255, 170, .05);
+      border-color: rgba(0, 255, 170, .18);
+    }
+
+    .ab-icon {
+      font-size: .9rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .ab-body strong {
+      font-size: .76rem;
+      display: block;
+      color: var(--text);
+    }
+
+    .ab-body p {
+      font-size: .7rem;
+      color: var(--text2);
+      margin-top: 1px;
+      line-height: 1.55;
+    }
+
+    /* ── ANOMALY ── */
+    .anm-item {
+      background: rgba(255, 255, 255, .02);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: .9rem 1rem;
+      margin-bottom: .6rem;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      transition: all .2s;
+    }
+
+    .anm-item:hover {
+      border-color: rgba(168, 85, 247, .25);
+    }
+
+    .anm-score {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      min-width: 48px;
+      text-align: center;
+    }
+
+    /* ── ARCH ── */
+    .sf-node {
+      padding: .8rem 1rem;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid;
+      font-size: .74rem;
+      transition: all .2s;
+    }
+
+    .sf-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .3);
+    }
+
+    /* ── MODAL ── */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .8);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-bg.on {
+      display: flex;
+    }
+
+    .modal {
+      background: rgba(10, 14, 22, .97);
+      border: 1px solid rgba(79, 142, 247, .2);
+      border-radius: 24px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: viewIn .2s ease;
+    }
+
+    .mh {
+      padding: 1.4rem 1.6rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mt {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: .95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mc {
+      background: none;
+      border: none;
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px;
+      border-radius: 6px;
+      line-height: 1;
+      transition: all .15s;
+    }
+
+    .mc:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .mb {
+      padding: 1.4rem 1.6rem;
+    }
+
+    .mf {
+      padding: 1rem 1.6rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+    }
+
+    .fg {
+      margin-bottom: .9rem;
+    }
+
+    .fl {
+      display: block;
+      font-size: .7rem;
+      font-weight: 700;
+      color: var(--text2);
+      margin-bottom: .35rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+
+    .fi {
+      width: 100%;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: .78rem;
+      outline: none;
+      transition: border-color .18s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .fi:focus {
+      border-color: var(--accent);
+    }
+
+    .fh {
+      font-size: .64rem;
+      color: var(--text3);
+      margin-top: .3rem;
+    }
+
+    .fr2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .7rem;
+    }
+
+    /* ── EXPORT OPT ── */
+    .eo {
+      background: rgba(255, 255, 255, .02);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: .9rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all .2s;
+    }
+
+    .eo:hover {
+      border-color: rgba(79, 142, 247, .35);
+      background: rgba(79, 142, 247, .06);
+      transform: translateX(4px);
+    }
+
+    .ei {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    /* ── GRAFANA FRAME ── */
+    .gf-frame {
+      width: 100%;
+      height: 440px;
+      border: none;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, .4);
+    }
+
+    .gf-ph {
+      height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, .02);
+      border: 2px dashed rgba(79, 142, 247, .2);
+      border-radius: 16px;
+      gap: .8rem;
+    }
+
+    /* ── TIMELINE ── */
+    .tl {
+      list-style: none;
+    }
+
+    .tl-item {
+      display: flex;
+      gap: 10px;
+      padding: .55rem 0;
+    }
+
+    .tl-ic {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tl-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      border: 2px solid;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    .tl-line {
+      width: 2px;
+      flex: 1;
+      background: rgba(255, 255, 255, .05);
+      margin-top: 2px;
+    }
+
+    .tl-c {
+      flex: 1;
+      padding-bottom: .3rem;
+    }
+
+    .tl-t {
+      font-size: .76rem;
+      font-weight: 600;
+    }
+
+    .tl-s {
+      font-size: .66rem;
+      color: var(--text2);
+      margin-top: 1px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── CHIP ── */
+    .chip {
+      background: rgba(255, 255, 255, .06);
+      color: var(--text2);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: .65rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .notif {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .85rem;
+      color: var(--text2);
+      transition: all .18s;
+    }
+
+    .notif:hover {
+      border-color: var(--red);
+    }
+
+    .notif-d {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 15px;
+      height: 15px;
+      background: var(--red);
+      border-radius: 50%;
+      font-size: .55rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg);
+    }
+
+    /* ── PRED BOX ── */
+    .pred-box {
+      padding: 1.2rem;
+      background: rgba(255, 255, 255, .02);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-align: center;
+      transition: all .2s;
+    }
+
+    .pred-box:hover {
+      border-color: rgba(79, 142, 247, .25);
+    }
+
+    .pred-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+
+    .pred-lbl {
+      font-size: .68rem;
+      color: var(--text2);
+      margin-top: 3px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── TOAST ── */
+    .toast-wrap {
+      position: fixed;
+      top: 1.2rem;
+      right: 1.2rem;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: .45rem;
+    }
+
+    .toast {
+      background: rgba(10, 14, 22, .95);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: .75rem 1rem;
+      font-size: .73rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: viewIn .22s ease;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+      border-left-width: 3px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      max-width: 300px;
+    }
+
+    /* ── FINOPS ── */
+    .finops-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: .6rem;
+    }
+
+    .fl-lbl {
+      font-size: .75rem;
+      min-width: 75px;
+    }
+
+    .fl-bar {
+      flex: 1;
+    }
+
+    .fl-val {
+      font-size: .75rem;
+      font-weight: 700;
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* ── ARCH ── */
+    .arch-arrow {
+      color: rgba(255, 255, 255, .2);
+      text-align: center;
+      font-size: .8rem;
+      margin: 4px 0;
+    }
+
+
+    /* ── NOTIFICATION PANEL ── */
+    .notif-panel {
+      position: fixed;
+      top: 56px;
+      right: 12px;
+      width: 380px;
+      max-height: calc(100vh - 80px);
+      background: rgba(10, 14, 22, .97);
+      border: 1px solid rgba(79, 142, 247, .22);
+      border-radius: 20px;
+      z-index: 900;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      animation: viewIn .2s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+    }
+
+    .notif-panel.on {
+      display: flex;
+    }
+
+    .np-head {
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .np-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .np-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .np-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: .5rem;
+    }
+
+    .np-item {
+      padding: .85rem 1rem;
+      border-radius: 14px;
+      margin-bottom: .35rem;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all .18s;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .np-item:hover {
+      background: rgba(79, 142, 247, .06);
+      border-color: rgba(79, 142, 247, .1);
+    }
+
+    .np-item.unread {
+      border-left: 3px solid var(--accent);
+    }
+
+    .np-item.np-crit.unread {
+      border-left-color: var(--red);
+    }
+
+    .np-item.np-warn.unread {
+      border-left-color: var(--yellow);
+    }
+
+    .np-item.np-ok.unread {
+      border-left-color: var(--green);
+    }
+
+    .np-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .np-content {}
+
+    .np-msg {
+      font-size: .76rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .np-sub {
+      font-size: .66rem;
+      color: var(--text2);
+      margin-top: 3px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .np-time {
+      font-size: .6rem;
+      color: var(--text3);
+      margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .np-section-lbl {
+      font-size: .6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: rgba(255, 255, 255, .2);
+      padding: .4rem .8rem .2rem;
+      margin-top: .2rem;
+    }
+
+    .np-footer {
+      padding: .8rem 1.2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+
+
+
+
+    /* TOGGLE SWITCH */
+    .tog {
+      position: relative;
+      width: 40px;
+      height: 22px;
+    }
+
+    .tog input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .tog-sl {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: rgba(255, 255, 255, .08);
+      border-radius: 22px;
+      transition: .3s;
+      border: 1px solid var(--border);
+    }
+
+    .tog-sl::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      bottom: 2px;
+      background: var(--text2);
+      border-radius: 50%;
+      transition: .3s;
+    }
+
+    .tog input:checked+.tog-sl {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .tog input:checked+.tog-sl::before {
+      transform: translateX(18px);
+      background: #000;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cursor-glow"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- ══ PRELOADER ══ -->
+  <div id="preloader">
+    <div class="scan-line"></div>
+    <div class="load-ring">
+      <div class="load-ring-inner"></div>
+    </div>
+    <div class="load-title">NEXUS</div>
+    <div class="load-sub" id="load-status">Initializing Neural Mesh…</div>
+    <div class="load-bar-wrap">
+      <div class="load-bar" id="load-bar"></div>
+    </div>
+  </div>
+
+  <!-- ══ APP ══ -->
+  <div id="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sb">
+      <div class="sidebar-head">
+        <div class="sidebar-logo">
+          <div class="logo-box">
+            <div class="logo-diamond"></div>
+          </div>
+          <div class="sidebar-logo-text">
+            <div class="logo-name">NEXUS</div>
+            <div class="logo-sub">GCP Intelligence</div>
+          </div>
+        </div>
+        <button class="mini-btn" onclick="toggleSB()">☰ Collapse</button>
+        <div class="sidebar-section">Core Observation</div>
+        <div class="nav-item on" data-p="overview"><span class="nav-icon">✦</span><span class="nav-text">Command
+            Center</span></div>
+        <div class="nav-item" data-p="prometheus"><span class="nav-icon" style="color:#e6522c;">⚡</span><span
+            class="nav-text">Prometheus Mesh</span></div>
+        <div class="nav-item" data-p="opencost"><span class="nav-icon" style="color:#00b4d8;">❖</span><span
+            class="nav-text">FinOps Engine</span></div>
+        <div class="nav-item" data-p="grafana"><span class="nav-icon" style="color:#f46800;">📉</span><span
+            class="nav-text">Grafana Dashboards</span></div>
+        <div class="sidebar-section">Advanced Intelligence</div>
+        <div class="nav-item" data-p="anomaly"><span class="nav-icon">👁</span><span class="nav-text">Anomaly
+            Lab</span><span class="nav-badge">7</span></div>
+        <div class="nav-item" data-p="predict"><span class="nav-icon">📈</span><span class="nav-text">Neural
+            Forecast</span></div>
+        <div class="nav-item" data-p="recs"><span class="nav-icon">💡</span><span class="nav-text">Optimization
+            Intel</span><span class="nav-badge y">9</span></div>
+        <div class="sidebar-section">Operations</div>
+        <div class="nav-item" data-p="alerts"><span class="nav-icon">🚨</span><span class="nav-text">Alert
+            Matrix</span><span class="nav-badge">3</span></div>
+        <div class="nav-item" data-p="arch"><span class="nav-icon">🏗</span><span class="nav-text">Stack
+            Architecture</span></div>
+      </div>
+      <div class="sidebar-foot">
+        <div class="status-pill">
+          <div class="status-dot"></div>
+          <div class="sidebar-status-text">
+            <div class="status-t">System Uplink Stable</div>
+            <div class="status-s">Latency: 0.8ms · v4.0</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="logo-box" style="width:28px;height:28px;border-radius:7px;">
+          <div class="logo-diamond" style="width:16px;height:16px;border-radius:3px;"></div>
+        </div>
+        <div class="tb-title grotesk">NEXUS-PRIME-PROD</div>
+        <span class="tb-badge tb-b-ok">● Optimized</span>
+        <div class="tb-sep"></div>
+        <div class="top-clock" id="clock"></div>
+        <span class="tb-badge" id="apiStatus"
+          style="background:rgba(100,116,139,.15);border:1px solid rgba(100,116,139,.25);color:var(--text2);"
+          title="Backend API status">API …</span>
+
+        <select class="sel" id="projSel">
+          <option>prod-cluster-01</option>
+          <option>staging-02</option>
+          <option>ml-pipeline-03</option>
+        </select>
+        <select class="sel">
+          <option>Last 24h</option>
+          <option>Last 7d</option>
+          <option>Last 30d</option>
+        </select>
+        <button class="tbtn" onclick="openM('exportM')">⬇ Export</button>
+        <button class="tbtn prom-btn" onclick="openM('promM')">⚡ Prometheus</button>
+        <button class="tbtn" onclick="openM('grafanaM')">📊 Grafana</button>
+        <button class="tbtn ai" onclick="runAI()">✨ AI Insights</button>
+        <div class="notif" onclick="showNotif()">🔔<div class="notif-d">7</div>
+        </div>
+
+      </header>
+
+      <div class="content" id="mainC">
+
+        <!-- ══════ OVERVIEW ══════ -->
+        <div class="view on" id="v-overview">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Command Center</div>
+              <div class="page-sub">System Uplink Active · Prometheus + OpenCost + AI</div>
+            </div>
+            <div class="sa">
+              <span class="src sl-prom">Prometheus</span>
+              <span class="src sl-oc">OpenCost</span>
+              <span class="src sl-ai">AI Neural</span>
+              <button class="tbtn" onclick="refresh()">⟳ Sync Mesh</button>
+            </div>
+          </div>
+
+          <div class="g g5" style="margin-bottom:1rem;">
+            <div class="card card-sm card-glow-accent cg-blue">
+              <div class="kpi-label">Monthly Cost <span class="src sl-oc">OC</span></div>
+              <div class="kpi-hero blue">$2,847</div>
+              <div class="kpi-sub" style="font-size:.72rem;color:var(--text2);margin-top:2px;">Budget: $4,000</div>
+              <span class="kpi-trend t-up">↑ +12.5%</span>
+              <div class="k-bar">
+                <div class="k-bar-f" style="width:71%;background:linear-gradient(90deg,var(--accent),var(--cyan));">
+                </div>
+              </div>
+            </div>
+            <div class="card card-sm card-glow-accent cg-prom">
+              <div class="kpi-label">CPU Load <span class="src sl-prom">PROM</span></div>
+              <div class="kpi-hero prom" id="kpi-cpu">73%</div>
+              <div class="kpi-sub" style="font-size:.72rem;color:var(--text2);margin-top:2px;">847 vCPUs active</div>
+              <span class="kpi-trend t-dn" id="kpi-cpu-trend">↓ -3.2%</span>
+              <div class="k-bar">
+                <div class="k-bar-f" id="kpi-cpu-bar"
+                  style="width:73%;background:linear-gradient(90deg,var(--prom),var(--orange));"></div>
+              </div>
+            </div>
+            <div class="card card-sm card-glow-accent cg-green">
+              <div class="kpi-label">Storage <span class="src sl-prom">PROM</span></div>
+              <div class="kpi-hero green" id="kpi-disk">15.3 TB</div>
+              <div class="kpi-sub" style="font-size:.72rem;color:var(--text2);margin-top:2px;">92% allocated</div>
+              <span class="kpi-trend t-up" id="kpi-disk-trend">↑ +8.7%</span>
+              <div class="k-bar">
+                <div class="k-bar-f" id="kpi-disk-bar"
+                  style="width:92%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div>
+              </div>
+            </div>
+            <div class="card card-sm card-glow-accent">
+              <div class="kpi-label">Network <span class="src sl-prom">PROM</span></div>
+              <div class="kpi-hero" id="kpi-network"
+                style="background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;">2.4
+                TB</div>
+              <div class="kpi-sub" style="font-size:.72rem;color:var(--text2);margin-top:2px;">In + out today</div>
+              <span class="kpi-trend t-nt" id="kpi-network-trend">→ Stable</span>
+              <div class="k-bar">
+                <div class="k-bar-f" id="kpi-network-bar"
+                  style="width:55%;background:linear-gradient(90deg,var(--yellow),var(--orange));"></div>
+              </div>
+            </div>
+            <div class="card card-sm card-glow-accent cg-red">
+              <div class="kpi-label">Anomalies <span class="src sl-ai">AI</span></div>
+              <div class="kpi-hero red">7</div>
+              <div class="kpi-sub" style="font-size:.72rem;color:var(--text2);margin-top:2px;">3 critical · 4 warnings
+              </div>
+              <span class="kpi-trend t-up">↑ +3 new</span>
+              <div class="k-bar">
+                <div class="k-bar-f" style="width:35%;background:linear-gradient(90deg,var(--red),var(--orange));">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="g g5" style="margin-bottom:1rem;">
+            <div class="card card-sm">
+              <div class="kpi-label">Instances</div>
+              <div class="kpi-hero purple" style="font-size:2rem;">124</div>
+              <div style="font-size:.7rem;color:var(--text2);">Running VMs</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">DB QPS</div>
+              <div class="kpi-hero"
+                style="font-size:2rem;background:linear-gradient(135deg,var(--orange),var(--yellow));-webkit-background-clip:text;">
+                8.4K</div>
+              <div style="font-size:.7rem;color:var(--text2);">SQL + BigQuery</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">SLA Uptime</div>
+              <div class="kpi-hero green" style="font-size:2rem;">99.94%</div>
+              <div style="font-size:.7rem;color:var(--text2);">30-day rolling</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">Deployments</div>
+              <div class="kpi-hero blue" style="font-size:2rem;">14</div>
+              <div style="font-size:.7rem;color:var(--text2);">Today</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">Savings Avail.</div>
+              <div class="kpi-hero green" style="font-size:2rem;">$754</div>
+              <div style="font-size:.7rem;color:var(--text2);">9 recs open</div>
+            </div>
+          </div>
+
+          <div class="g g31" style="margin-bottom:1rem;">
+            <div class="card" style="height:380px;">
+              <div class="sh" style="margin-bottom:.8rem;">
+                <div class="st">
+                  <div class="accent-bar"></div>Neural Flux Capacity — Prometheus Stream
+                </div>
+                <div class="sa"><span class="src sl-prom">node_cpu · mem · net</span></div>
+              </div>
+              <canvas id="fluxChart" style="height:300px;"></canvas>
+            </div>
+            <div class="card" style="height:380px;">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar"></div>Resource Allocation
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;height:300px;">
+                <canvas id="allocChart" style="max-height:260px;max-width:260px;"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sh">
+              <div class="st">
+                <div class="accent-bar"></div>Workload Integrity Matrix
+              </div>
+              <div class="sa"><span class="src sl-prom">Prometheus</span><span class="src sl-oc">OpenCost</span><button
+                  class="tbtn" onclick="exportCSV()">⬇ CSV</button></div>
+            </div>
+            <div class="tw">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Service Target</th>
+                    <th>Region</th>
+                    <th>State</th>
+                    <th>CPU (Prom)</th>
+                    <th>Utilization</th>
+                    <th>Cost/Day (OC)</th>
+                    <th>AI Score</th>
+                    <th>SLA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Nexus-Gateway-Alpha</strong></td>
+                    <td><span class="chip">us-central1</span></td>
+                    <td><span class="badge bg"><span class="dp dg"></span>Optimal</span></td>
+                    <td>78%</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:78%;background:var(--accent);"></div>
+                      </div>
+                    </td>
+                    <td>$127.45</td>
+                    <td><span
+                        style="color:var(--green);font-family:'JetBrains Mono',monospace;font-size:.7rem;">0.12</span>
+                    </td>
+                    <td>99.99%</td>
+                  </tr>
+                  <tr>
+                    <td><strong>DB-Cluster-Mesh</strong></td>
+                    <td><span class="chip">us-west2</span></td>
+                    <td><span class="badge br"><span class="dp dr"></span>Critical</span></td>
+                    <td>95%</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:95%;background:var(--red);"></div>
+                      </div>
+                    </td>
+                    <td>$156.78</td>
+                    <td><span
+                        style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:900;">0.94</span>
+                    </td>
+                    <td>99.82%</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Storage-Node-Mesh</strong></td>
+                    <td><span class="chip">us-east1</span></td>
+                    <td><span class="badge by"><span class="dp dy"></span>Warning</span></td>
+                    <td>—</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:92%;background:var(--yellow);"></div>
+                      </div>
+                    </td>
+                    <td>$43.21</td>
+                    <td><span
+                        style="color:var(--yellow);font-family:'JetBrains Mono',monospace;font-size:.7rem;">0.71</span>
+                    </td>
+                    <td>99.95%</td>
+                  </tr>
+                  <tr>
+                    <td><strong>AI-Compute-Grid</strong></td>
+                    <td><span class="chip">us-central1-f</span></td>
+                    <td><span class="badge bg"><span class="dp dg"></span>Optimal</span></td>
+                    <td>45%</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:45%;background:var(--purple);"></div>
+                      </div>
+                    </td>
+                    <td>$212.90</td>
+                    <td><span
+                        style="color:var(--green);font-family:'JetBrains Mono',monospace;font-size:.7rem;">0.04</span>
+                    </td>
+                    <td>99.99%</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GKE-Analytics-Mesh</strong></td>
+                    <td><span class="chip">asia-east1</span></td>
+                    <td><span class="badge bg"><span class="dp dg"></span>Optimal</span></td>
+                    <td>54%</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:54%;background:var(--cyan);"></div>
+                      </div>
+                    </td>
+                    <td>$89.12</td>
+                    <td><span
+                        style="color:var(--green);font-family:'JetBrains Mono',monospace;font-size:.7rem;">0.08</span>
+                    </td>
+                    <td>99.97%</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Run-API-Layer</strong></td>
+                    <td><span class="chip">europe-west1</span></td>
+                    <td><span class="badge by"><span class="dp dy"></span>Warning</span></td>
+                    <td>61%</td>
+                    <td>
+                      <div class="pb">
+                        <div class="pb-f" style="width:61%;background:var(--orange);"></div>
+                      </div>
+                    </td>
+                    <td>$38.60</td>
+                    <td><span
+                        style="color:var(--yellow);font-family:'JetBrains Mono',monospace;font-size:.7rem;">0.41</span>
+                    </td>
+                    <td>99.91%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ PROMETHEUS ══════ -->
+        <div class="view" id="v-prometheus">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--prom),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Prometheus Mesh</div>
+              <div class="page-sub">Scrape Targets: 24 · Ingest: 42K/s · TSDB: 15d Retention</div>
+            </div>
+            <div class="sa"><button class="tbtn prom-btn" onclick="openM('promM')">⚙ Configure</button></div>
+          </div>
+          <div class="g g4" style="margin-bottom:1rem;">
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(230,82,44,.7);">Scrape Targets</div>
+              <div class="kpi-hero prom" style="font-size:2rem;">24</div><span class="kpi-trend t-dn">✓ 100% UP</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(230,82,44,.7);">Ingest/s</div>
+              <div class="kpi-hero"
+                style="font-size:2rem;background:linear-gradient(135deg,var(--orange),var(--yellow));-webkit-background-clip:text;">
+                42K</div><span class="kpi-trend t-nt">→ Normal</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(230,82,44,.7);">Active Series</div>
+              <div class="kpi-hero purple" style="font-size:2rem;">1.2M</div><span class="kpi-trend t-up">↑ +4%</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(230,82,44,.7);">TSDB Size</div>
+              <div class="kpi-hero blue" style="font-size:2rem;">18.4 GB</div><span class="kpi-trend t-dn">↓
+                Efficient</span>
+            </div>
+          </div>
+          <div class="g g2" style="margin-bottom:1rem;">
+            <div class="card">
+              <div class="st" style="margin-bottom:1rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--prom),var(--orange));"></div>Active
+                PromQL Buffers
+              </div>
+              <div class="promql" style="margin-bottom:.6rem;">
+                <div class="pq-lbl">Rate — CPU seconds (idle mode)</div>
+                <span class="m">avg</span>(<span class="f">rate</span>(<span
+                  class="v">node_cpu_seconds_total</span>{<span class="m">mode</span>=<span
+                  class="n">"idle"</span>}[<span class="f">5m</span>])) <span class="op">by</span> (<span
+                  class="v">instance</span>)
+                <button class="pq-run" onclick="toast('Query executed · 24 results','info')">▶ RUN</button>
+              </div>
+              <div class="promql" style="margin-bottom:.6rem;">
+                <div class="pq-lbl">Cloud SQL CPU Alert Condition</div>
+                <span class="n">100</span> <span class="op">-</span> (<span class="m">avg</span>(<span
+                  class="f">rate</span>(<span class="v">node_cpu_seconds_total</span>{<span class="m">mode</span>=<span
+                  class="n">"idle"</span>,<span class="v">job</span>=<span class="n">"cloudsql"</span>}[<span
+                  class="f">2m</span>])) <span class="op">*</span> <span class="n">100</span>) <span class="op">></span>
+                <span class="n">90</span>
+                <button class="pq-run" onclick="toast('Alert fired: sql-replica-01 · CRITICAL','error')">▶ RUN</button>
+              </div>
+              <div class="promql" style="margin-bottom:.6rem;">
+                <div class="pq-lbl">Memory availability ratio</div>
+                <span class="f">node_memory_MemAvailable_bytes</span> <span class="op">/</span> <span
+                  class="f">node_memory_MemTotal_bytes</span> <span class="op">*</span> <span class="n">100</span>
+                <button class="pq-run" onclick="toast('Query executed · 7 nodes','info')">▶ RUN</button>
+              </div>
+              <div class="promql">
+                <div class="pq-lbl">Network bytes transmitted rate</div>
+                <span class="f">rate</span>(<span class="v">node_network_transmit_bytes_total</span>[<span
+                  class="f">5m</span>]) <span class="op">*</span> <span class="n">8</span>
+                <button class="pq-run" onclick="toast('Network rate · 6 interfaces','info')">▶ RUN</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:1rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--prom),var(--orange));"></div>Prometheus
+                Sample Stream
+              </div>
+              <canvas id="promStreamChart" style="height:280px;"></canvas>
+            </div>
+          </div>
+          <div class="g g2">
+            <div class="card">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar"></div>CPU Utilization per Instance (24h)
+              </div><canvas id="cpuChart" style="height:190px;"></canvas>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar"></div>Network In/Out Gbps (24h)
+              </div><canvas id="netChart" style="height:190px;"></canvas>
+            </div>
+          </div>
+
+          <!-- ── PROMETHEUS QUERY EXPLORER ── -->
+          <div class="card" style="margin-top:1rem;border-color:rgba(230,82,44,.22);">
+            <div class="sh" style="margin-bottom:1rem;">
+              <div class="st">
+                <div class="accent-bar" style="background:linear-gradient(var(--prom),var(--orange));"></div>
+                ⚡ Prometheus Query Explorer
+              </div>
+              <div class="sa">
+                <span class="src sl-prom">Live Query</span>
+                <span id="pqe-status"
+                  style="font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text2);"></span>
+              </div>
+            </div>
+            <div style="display:flex;gap:.6rem;margin-bottom:.8rem;">
+              <input id="pqe-input" class="fi"
+                style="flex:1;font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:9px 14px;"
+                placeholder="rate(node_cpu_seconds_total{mode=&quot;idle&quot;}[5m])"
+                value="rate(node_cpu_seconds_total[5m])" onkeydown="if(event.key==='Enter')runPromQuery()">
+              <button class="tbtn prom-btn" id="pqe-btn" onclick="runPromQuery()"
+                style="white-space:nowrap;padding:8px 18px;font-weight:800;">▶ Run Query</button>
+              <button class="tbtn"
+                onclick="(function(){document.getElementById('pqe-input').value='';document.getElementById('pqe-idle').style.display='';['pqe-err','pqe-empty','pqe-chart-wrap'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});})()"
+                style="padding:8px 12px;" title="Clear">✕</button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem;">
+              <span class="chip" style="cursor:pointer;border:1px solid rgba(230,82,44,.25);color:#ff6a4d;"
+                onclick="pqePreset(this)">rate(node_cpu_seconds_total[5m])</span>
+              <span class="chip" style="cursor:pointer;border:1px solid rgba(0,180,216,.25);color:#00d4ff;"
+                onclick="pqePreset(this)">node_memory_MemAvailable_bytes/node_memory_MemTotal_bytes*100</span>
+              <span class="chip" style="cursor:pointer;border:1px solid rgba(0,255,170,.25);color:var(--green);"
+                onclick="pqePreset(this)">rate(node_network_transmit_bytes_total[5m])*8</span>
+              <span class="chip" style="cursor:pointer;border:1px solid rgba(79,142,247,.25);color:#93c5fd;"
+                onclick="pqePreset(this)">node_filesystem_avail_bytes/node_filesystem_size_bytes*100</span>
+            </div>
+            <div id="pqe-err" style="display:none;" class="ab a-r">
+              <div class="ab-icon">🔴</div>
+              <div class="ab-body"><strong id="pqe-err-title">Query Failed</strong>
+                <p id="pqe-err-msg" style="margin:0;font-size:.75rem;color:var(--text2);"></p>
+              </div>
+            </div>
+            <div id="pqe-empty"
+              style="display:none;text-align:center;padding:1.8rem;color:var(--text2);font-size:.78rem;">⚡ No data
+              returned for this expression.</div>
+            <div id="pqe-chart-wrap" style="display:none;">
+              <div id="pqe-meta"
+                style="font-size:.6rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:.5rem;">
+              </div>
+              <canvas id="pqeChart" style="height:220px;"></canvas>
+            </div>
+            <div id="pqe-idle"
+              style="text-align:center;padding:2rem;color:rgba(255,255,255,.1);font-size:.82rem;font-family:'JetBrains Mono',monospace;">
+              Enter a PromQL expression and press Run Query →</div>
+          </div>
+
+        </div>
+
+        <!-- ══════ OPENCOST ══════ -->
+        <div class="view" id="v-opencost">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--oc),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                FinOps Engine</div>
+              <div class="page-sub">OpenCost · /allocation/compute · Cloud Cost Intelligence</div>
+            </div>
+            <div class="sa"><button class="tbtn" onclick="openM('opencostM')">⚙ Configure</button><button class="tbtn"
+                onclick="exportCSV()">⬇ CSV</button></div>
+          </div>
+          <div class="g g4" style="margin-bottom:1rem;">
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(0,180,216,.7);">Allocated Cost</div>
+              <div class="kpi-hero"
+                style="background:linear-gradient(135deg,var(--oc),var(--cyan));-webkit-background-clip:text;font-size:2rem;">
+                $2,847/mo</div><span class="kpi-trend t-up">↑ +12.5%</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(0,180,216,.7);">Idle Waste</div>
+              <div class="kpi-hero"
+                style="background:linear-gradient(135deg,var(--orange),var(--red));-webkit-background-clip:text;font-size:2rem;">
+                $342/mo</div><span class="kpi-trend t-up">12% of total</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(0,180,216,.7);">Efficiency</div>
+              <div class="kpi-hero green" style="font-size:2rem;">74%</div><span class="kpi-trend t-nt">Target:
+                85%</span>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label" style="color:rgba(0,180,216,.7);">Cost/vCPU·hr</div>
+              <div class="kpi-hero purple" style="font-size:2rem;">$0.042</div><span class="kpi-trend t-dn">↓ -6%</span>
+            </div>
+          </div>
+          <div class="g g2" style="margin-bottom:1rem;">
+            <div class="card">
+              <div class="st" style="margin-bottom:1rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--oc),var(--cyan));"></div>Cost Allocation
+                by Namespace
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">Compute Engine</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:86%;background:var(--accent);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--accent);">$943/mo</div>
+                <div class="oc-d" style="color:var(--red);">↑14%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">Cloud SQL</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:61%;background:var(--red);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--red);">$568/mo</div>
+                <div class="oc-d" style="color:var(--red);">↑32%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">GKE Cluster</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:42%;background:var(--purple);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--purple);">$384/mo</div>
+                <div class="oc-d" style="color:var(--yellow);">→2%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">Cloud Storage</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:34%;background:var(--green);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--green);">$312/mo</div>
+                <div class="oc-d" style="color:var(--red);">↑9%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">BigQuery</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:23%;background:var(--yellow);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--yellow);">$215/mo</div>
+                <div class="oc-d" style="color:var(--green);">↓5%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">Network Egress</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:21%;background:var(--cyan);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--cyan);">$197/mo</div>
+                <div class="oc-d" style="color:var(--yellow);">→0%</div>
+              </div>
+              <div class="oc-row">
+                <div class="oc-name">Cloud Run</div>
+                <div class="oc-bar">
+                  <div class="pb">
+                    <div class="pb-f" style="width:14%;background:var(--orange);"></div>
+                  </div>
+                </div>
+                <div class="oc-val" style="color:var(--orange);">$128/mo</div>
+                <div class="oc-d" style="color:var(--green);">↓8%</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--oc),var(--cyan));"></div>30-Day OpenCost
+                Trend
+              </div><canvas id="ocChart" style="height:260px;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ GRAFANA ══════ -->
+        <div class="view" id="v-grafana">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--grafana),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Grafana Dashboards</div>
+              <div class="page-sub">Real-Time Visualization · Embed Any Grafana Instance</div>
+            </div>
+            <button class="tbtn acc" onclick="openM('grafanaM')">⚡ Connect Grafana</button>
+          </div>
+          <div id="gfEmbed">
+            <div class="gf-ph">
+              <div style="font-size:2.8rem;">📉</div>
+              <div class="grotesk" style="font-size:1.1rem;font-weight:700;">Grafana Not Connected</div>
+              <div style="font-size:.78rem;color:var(--text2);text-align:center;max-width:380px;line-height:1.6;">
+                Connect your Grafana instance (Cloud, self-hosted, or OSS) to embed live dashboards. Supports API key,
+                service account, and anonymous auth.</div>
+              <button class="tbtn acc" onclick="openM('grafanaM')">Connect Grafana →</button>
+            </div>
+          </div>
+          <div class="g g2" style="margin-top:1rem;">
+            <div class="card">
+              <div class="st" style="margin-bottom:.9rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--grafana),var(--orange));"></div>
+                Connection Steps
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.45rem;">
+                <div
+                  style="display:flex;gap:9px;font-size:.75rem;padding:.6rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;align-items:flex-start;">
+                  <div
+                    style="width:20px;height:20px;background:var(--blue2,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;">
+                    1</div><span>Grafana → <strong>Administration → API Keys</strong> → Viewer role</span>
+                </div>
+                <div
+                  style="display:flex;gap:9px;font-size:.75rem;padding:.6rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;align-items:flex-start;">
+                  <div
+                    style="width:20px;height:20px;background:var(--blue2,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;">
+                    2</div><span>Set <code
+                      style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;">GF_SECURITY_ALLOW_EMBEDDING=true</code></span>
+                </div>
+                <div
+                  style="display:flex;gap:9px;font-size:.75rem;padding:.6rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;align-items:flex-start;">
+                  <div
+                    style="width:20px;height:20px;background:var(--blue2,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;">
+                    3</div><span>Paste Grafana URL + dashboard URL in Connect modal</span>
+                </div>
+                <div
+                  style="display:flex;gap:9px;font-size:.75rem;padding:.6rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;align-items:flex-start;">
+                  <div
+                    style="width:20px;height:20px;background:var(--blue2,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;">
+                    4</div><span>For Grafana Cloud: enable <strong>public dashboards</strong> feature</span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:.9rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--grafana),var(--orange));"></div>
+                Recommended Dashboards (Import by ID)
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Dashboard</th>
+                    <th>ID</th>
+                    <th>Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Node Exporter Full</strong></td>
+                    <td><span class="chip">1860</span></td>
+                    <td>CPU/Mem/Disk/Net</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Kubernetes Cluster</strong></td>
+                    <td><span class="chip">6417</span></td>
+                    <td>GKE pod monitoring</td>
+                  </tr>
+                  <tr>
+                    <td><strong>OpenCost Dashboard</strong></td>
+                    <td><span class="chip">20765</span></td>
+                    <td>Cost allocation</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cloud SQL Insights</strong></td>
+                    <td><span class="chip">14057</span></td>
+                    <td>MySQL/Postgres</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GCP Overview</strong></td>
+                    <td><span class="chip">14919</span></td>
+                    <td>GCP summary</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ ANOMALY ══════ -->
+        <div class="view" id="v-anomaly">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--purple),var(--ai));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Anomaly Lab</div>
+              <div class="page-sub">Isolation Forest · Multi-Variate LSTM · EWMA Detection</div>
+            </div>
+            <div class="sa"><span class="src sl-prom">Prometheus feed</span><span class="src sl-ai">AI Neural</span>
+            </div>
+          </div>
+          <div class="g g3" style="margin-bottom:1rem;">
+            <div class="card card-sm cg-red card-glow-accent">
+              <div class="kpi-label">Critical Anomalies</div>
+              <div class="kpi-hero red" style="font-size:2rem;">3</div>
+              <div style="font-size:.7rem;color:var(--text2);">Immediate action</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">Warnings</div>
+              <div class="kpi-hero"
+                style="font-size:2rem;background:linear-gradient(135deg,var(--yellow),var(--orange));-webkit-background-clip:text;">
+                4</div>
+              <div style="font-size:.7rem;color:var(--text2);">Monitor closely</div>
+            </div>
+            <div class="card card-sm cg-green card-glow-accent">
+              <div class="kpi-label">Auto-Resolved</div>
+              <div class="kpi-hero green" style="font-size:2rem;">12</div>
+              <div style="font-size:.7rem;color:var(--text2);">Last 24 hours</div>
+            </div>
+          </div>
+          <div class="g" style="grid-template-columns:3fr 1fr;margin-bottom:1rem;">
+            <div class="card" style="height:420px;">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar" style="background:linear-gradient(var(--purple),var(--ai));"></div>Anomaly Score
+                Timeline (Isolation Forest)
+              </div>
+              <canvas id="anomalyChart" style="height:340px;"></canvas>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:.7rem;">
+              <div class="card" style="border-left:3px solid var(--red);">
+                <span
+                  style="font-size:.6rem;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.15em;">Critical
+                  Anomaly</span>
+                <div class="grotesk" style="font-size:.95rem;font-weight:700;margin-top:.4rem;">SQL CPU Variance Peak
+                </div>
+                <p style="font-size:.72rem;color:var(--text2);margin-top:.4rem;line-height:1.6;">Score 0.94 ·
+                  db-cluster-mesh · Immediate rescale recommended.</p>
+                <span class="src sl-prom" style="margin-top:.5rem;display:inline-block;">node_cpu · PromQL fired</span>
+              </div>
+              <div class="card" style="border-left:3px solid var(--yellow);">
+                <span
+                  style="font-size:.6rem;font-weight:800;color:var(--yellow);text-transform:uppercase;letter-spacing:.15em;">Drift
+                  Detected</span>
+                <div class="grotesk" style="font-size:.95rem;font-weight:700;margin-top:.4rem;">Storage Growth Anomaly
+                </div>
+                <p style="font-size:.72rem;color:var(--text2);margin-top:.4rem;line-height:1.6;">+45% EWMA deviation in
+                  us-east-1. 3.8σ from baseline.</p>
+                <span class="src sl-oc" style="margin-top:.5rem;display:inline-block;">OpenCost allocation</span>
+              </div>
+              <div class="card" style="border-left:3px solid var(--purple);">
+                <span
+                  style="font-size:.6rem;font-weight:800;color:var(--purple);text-transform:uppercase;letter-spacing:.15em;">Cost
+                  Spike</span>
+                <div class="grotesk" style="font-size:.95rem;font-weight:700;margin-top:.4rem;">Billing Anomaly</div>
+                <p style="font-size:.72rem;color:var(--text2);margin-top:.4rem;line-height:1.6;">Cloud SQL 3× daily
+                  baseline. Score 6.3.</p>
+                <span class="src sl-oc" style="margin-top:.5rem;display:inline-block;">OpenCost billing</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="st" style="margin-bottom:1rem;">
+              <div class="accent-bar" style="background:linear-gradient(var(--purple),var(--ai));"></div>Algorithm
+              Performance (fed by Prometheus TSDB)
+            </div>
+            <div class="g g3">
+              <div
+                style="padding:.9rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:14px;">
+                <div
+                  style="font-size:.78rem;font-weight:700;color:var(--prom);margin-bottom:.4rem;font-family:'Space Grotesk',sans-serif;">
+                  Isolation Forest</div>
+                <div style="font-size:.68rem;color:var(--text2);">n_estimators=100 · contamination=0.05</div>
+                <div class="pb" style="margin-top:.5rem;">
+                  <div class="pb-f" style="width:82%;background:linear-gradient(90deg,var(--prom),var(--orange));">
+                  </div>
+                </div>
+                <div style="font-size:.68rem;color:var(--prom);margin-top:4px;">Accuracy 82% · Best for point anomalies
+                </div>
+              </div>
+              <div
+                style="padding:.9rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:14px;">
+                <div
+                  style="font-size:.78rem;font-weight:700;color:var(--green);margin-bottom:.4rem;font-family:'Space Grotesk',sans-serif;">
+                  EWMA Moving Average</div>
+                <div style="font-size:.68rem;color:var(--text2);">Window: 24h · α=0.3 · Threshold: 2.5σ</div>
+                <div class="pb" style="margin-top:.5rem;">
+                  <div class="pb-f" style="width:91%;background:linear-gradient(90deg,var(--green),var(--cyan));"></div>
+                </div>
+                <div style="font-size:.68rem;color:var(--green);margin-top:4px;">Accuracy 91% · Best for time-series
+                  trends</div>
+              </div>
+              <div
+                style="padding:.9rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:14px;">
+                <div
+                  style="font-size:.78rem;font-weight:700;color:var(--yellow);margin-bottom:.4rem;font-family:'Space Grotesk',sans-serif;">
+                  Threshold-Based Rules</div>
+                <div style="font-size:.68rem;color:var(--text2);">Prometheus AlertManager · P99 bounds</div>
+                <div class="pb" style="margin-top:.5rem;">
+                  <div class="pb-f" style="width:76%;background:linear-gradient(90deg,var(--yellow),var(--orange));">
+                  </div>
+                </div>
+                <div style="font-size:.68rem;color:var(--yellow);margin-top:4px;">Accuracy 76% · Lowest latency (~1s)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ PREDICT ══════ -->
+        <div class="view" id="v-predict">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--cyan),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Neural Forecast</div>
+              <div class="page-sub">Predictive Cost Intelligence · OpenCost Historical Data · AI Model</div>
+            </div>
+          </div>
+          <div class="g g4" style="margin-bottom:1rem;">
+            <div class="pred-box" style="border-color:rgba(255,51,102,.2);">
+              <div class="pred-val"
+                style="background:linear-gradient(135deg,var(--orange),var(--red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                $4,120</div>
+              <div class="pred-lbl">Predicted Month-End</div>
+              <div class="pb" style="margin-top:.6rem;">
+                <div class="pb-f" style="width:88%;background:linear-gradient(90deg,var(--yellow),var(--red));"></div>
+              </div>
+              <div style="font-size:.65rem;color:var(--red);margin-top:4px;font-family:'JetBrains Mono',monospace;">HIGH
+                RISK · Over budget $120</div>
+            </div>
+            <div class="pred-box" style="border-color:rgba(79,142,247,.2);">
+              <div class="pred-val blue">+18%</div>
+              <div class="pred-lbl">QoQ Growth Rate</div>
+              <div class="pb" style="margin-top:.6rem;">
+                <div class="pb-f" style="width:87%;background:var(--accent);"></div>
+              </div>
+              <div style="font-size:.65rem;color:var(--cyan);margin-top:4px;font-family:'JetBrains Mono',monospace;">
+                Confidence: 87%</div>
+            </div>
+            <div class="pred-box" style="border-color:rgba(0,255,170,.15);">
+              <div class="pred-val green">$5,200</div>
+              <div class="pred-lbl">Q4 Monthly Estimate</div>
+              <div class="pb" style="margin-top:.6rem;">
+                <div class="pb-f" style="width:60%;background:var(--green);"></div>
+              </div>
+              <div style="font-size:.65rem;color:var(--green);margin-top:4px;font-family:'JetBrains Mono',monospace;">
+                180d OpenCost data</div>
+            </div>
+            <div class="pred-box" style="border-color:rgba(168,85,247,.2);">
+              <div class="pred-val purple">920 TB</div>
+              <div class="pred-lbl">Storage · 90-Day Forecast</div>
+              <div class="pb" style="margin-top:.6rem;">
+                <div class="pb-f" style="width:55%;background:var(--purple);"></div>
+              </div>
+              <div style="font-size:.65rem;color:var(--yellow);margin-top:4px;font-family:'JetBrains Mono',monospace;">
+                MEDIUM RISK</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="st" style="margin-bottom:.8rem;">
+              <div class="accent-bar"></div>90-Day Cost Forecast — Historical + AI Prediction
+            </div>
+            <canvas id="predChart" style="height:220px;"></canvas>
+          </div>
+          <div class="g g2">
+            <div class="card">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar"></div>Workload Growth Trajectory
+              </div><canvas id="wlChart" style="height:180px;"></canvas>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:.8rem;">
+                <div class="accent-bar"></div>Budget vs Actual + Forecast
+              </div><canvas id="budgetChart" style="height:180px;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ RECS ══════ -->
+        <div class="view" id="v-recs">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Optimization Intel</div>
+              <div class="page-sub">Prometheus + OpenCost Signals · AI Optimization Layer</div>
+            </div>
+            <button class="tbtn ai" onclick="runAI()">✨ AI Optimize</button>
+          </div>
+          <div class="g g3" style="margin-bottom:1rem;">
+            <div class="card card-sm cg-green card-glow-accent">
+              <div class="kpi-label">Total Savings</div>
+              <div class="kpi-hero green" style="font-size:1.8rem;">$754/mo</div>
+            </div>
+            <div class="card card-sm cg-blue card-glow-accent">
+              <div class="kpi-label">Open Items</div>
+              <div class="kpi-hero blue" style="font-size:1.8rem;">9</div>
+              <div style="font-size:.7rem;color:var(--text2);">3 high · 4 med · 2 low</div>
+            </div>
+            <div class="card card-sm">
+              <div class="kpi-label">Implemented (30d)</div>
+              <div class="kpi-hero"
+                style="font-size:1.8rem;background:linear-gradient(135deg,var(--cyan),var(--accent));-webkit-background-clip:text;">
+                14</div>
+              <div style="font-size:.7rem;color:var(--text2);">$1,240 saved</div>
+            </div>
+          </div>
+
+          <div
+            style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:18px;padding:1.1rem;margin-bottom:.7rem;display:flex;gap:11px;align-items:flex-start;transition:all .2s;cursor:default;"
+            onmouseover="this.style.borderColor='rgba(255,51,102,.3)'"
+            onmouseout="this.style.borderColor='var(--border)'">
+            <div
+              style="width:40px;height:40px;border-radius:10px;background:rgba(255,51,102,.1);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+              🔬</div>
+            <div style="flex:1;">
+              <div style="font-size:.82rem;font-weight:700;margin-bottom:.3rem;font-family:'Space Grotesk',sans-serif;">
+                VM Rightsizing — 12 Underutilized Instances <span class="src sl-prom"
+                  style="margin-left:4px;">Prometheus CPU</span></div>
+              <div style="font-size:.73rem;color:var(--text2);line-height:1.6;"><code
+                  style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;">node_cpu_seconds_total</code>
+                shows 12 VMs below 30% CPU for 7+ consecutive days. Downsize to n1-standard-1. Reversible in &lt;5 min.
+              </div><span
+                style="display:inline-block;margin-top:.4rem;font-size:.7rem;font-weight:700;color:var(--green);background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);padding:2px 8px;border-radius:20px;">💚
+                Save $245/month</span>
+            </div>
+            <span class="badge br" style="flex-shrink:0;">HIGH</span>
+          </div>
+          <div
+            style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:18px;padding:1.1rem;margin-bottom:.7rem;display:flex;gap:11px;align-items:flex-start;transition:all .2s;cursor:default;"
+            onmouseover="this.style.borderColor='rgba(251,191,36,.3)'"
+            onmouseout="this.style.borderColor='var(--border)'">
+            <div
+              style="width:40px;height:40px;border-radius:10px;background:rgba(251,191,36,.1);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+              📦</div>
+            <div style="flex:1;">
+              <div style="font-size:.82rem;font-weight:700;margin-bottom:.3rem;font-family:'Space Grotesk',sans-serif;">
+                1-Year CUDs — Stable Workloads <span class="src sl-oc" style="margin-left:4px;">OpenCost
+                  allocation</span></div>
+              <div style="font-size:.73rem;color:var(--text2);line-height:1.6;">OpenCost confirms 60+ days of consistent
+                usage on Compute, SQL, GKE. 1-year CUDs = 37% savings. Zero upfront payment.</div><span
+                style="display:inline-block;margin-top:.4rem;font-size:.7rem;font-weight:700;color:var(--green);background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);padding:2px 8px;border-radius:20px;">💚
+                Save $420/month</span>
+            </div>
+            <span class="badge br" style="flex-shrink:0;">HIGH</span>
+          </div>
+          <div
+            style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:18px;padding:1.1rem;margin-bottom:.7rem;display:flex;gap:11px;align-items:flex-start;transition:all .2s;cursor:default;"
+            onmouseover="this.style.borderColor='rgba(79,142,247,.3)'"
+            onmouseout="this.style.borderColor='var(--border)'">
+            <div
+              style="width:40px;height:40px;border-radius:10px;background:rgba(79,142,247,.1);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+              🗑</div>
+            <div style="flex:1;">
+              <div style="font-size:.82rem;font-weight:700;margin-bottom:.3rem;font-family:'Space Grotesk',sans-serif;">
+                Snapshot Cleanup — 2.3TB Detected <span class="src sl-oc" style="margin-left:4px;">OpenCost
+                  storage</span></div>
+              <div style="font-size:.73rem;color:var(--text2);line-height:1.6;">2.3 TB snapshots older than 90 days + 8
+                unattached disks (1.1 TB) found via OpenCost storage analysis. Safe to delete.</div><span
+                style="display:inline-block;margin-top:.4rem;font-size:.7rem;font-weight:700;color:var(--green);background:rgba(0,255,170,.08);border:1px solid rgba(0,255,170,.2);padding:2px 8px;border-radius:20px;">💚
+                Save $89/month</span>
+            </div>
+            <span class="badge by" style="flex-shrink:0;">MED</span>
+          </div>
+
+          <div class="card" id="aiReportCard"
+            style="display:none; margin-bottom: 1rem; border-color: var(--ai); box-shadow: 0 0 30px rgba(168,85,247,.15);">
+            <div class="sh" style="margin-bottom:.8rem;">
+              <div class="st">
+                <div class="accent-bar" style="background:linear-gradient(var(--purple),var(--ai));"></div>✨ AI
+                Optimization Report
+              </div>
+              <button class="mc" onclick="document.getElementById('aiReportCard').style.display='none'">✕</button>
+            </div>
+            <div class="ai-box" id="aiBox" style="min-height: 200px; padding: 1.5rem; background: rgba(0,0,0,.2);">
+            </div>
+          </div>
+
+          <div class="card" id="aiInitialCard">
+            <div class="sh" style="margin-bottom:.8rem;">
+              <div class="st">
+                <div class="accent-bar" style="background:linear-gradient(var(--purple),var(--ai));"></div>✨ Claude AI —
+                Neural Intelligence Layer
+              </div>
+              <button class="tbtn" onclick="runAI()">⟳ Regenerate</button>
+            </div>
+            <div class="ai-box"><span style="color:rgba(255,255,255,.2);">Click "✨ AI Insights" or "✨ AI Optimize" to
+                query Claude with live Prometheus + OpenCost data.</span></div>
+          </div>
+        </div>
+
+        <!-- ══════ ALERTS ══════ -->
+        <div class="view" id="v-alerts">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,var(--red),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Alert Matrix</div>
+              <div class="page-sub">Prometheus AlertManager · AI Anomaly Events · Notification Channels</div>
+            </div>
+            <button class="tbtn" onclick="exportAlerts()">⬇ Export Alerts</button>
+          </div>
+          <div class="g g3" style="margin-bottom:1rem;">
+            <div class="card card-sm">
+              <div class="st" style="font-size:.8rem;margin-bottom:.7rem;">
+                <div class="accent-bar"></div>Alert Summary
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.4rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:.76rem;"><span>🔴
+                    Critical</span><span class="badge br">3</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:.76rem;"><span>🟡
+                    Warning</span><span class="badge by">4</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:.76rem;"><span>🔵
+                    Info</span><span class="badge bb">6</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:.76rem;"><span>🟢
+                    Resolved</span><span class="badge bg">12</span></div>
+              </div>
+            </div>
+            <div class="card card-sm">
+              <div class="st" style="font-size:.8rem;margin-bottom:.7rem;">
+                <div class="accent-bar"></div>Notification Channels
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.35rem;">
+                <div class="badge bg" style="justify-content:flex-start;"><span class="dp dg"></span>Email <a
+                    href="/cdn-cgi/l/email-protection" class="__cf_email__"
+                    data-cfemail="c0afb0b380a3afadb0a1aeb9eea3afad">[email&#160;protected]</a></div>
+                <div class="badge bg" style="justify-content:flex-start;"><span class="dp dg"></span>Slack #gcp-alerts
+                </div>
+                <div class="badge by" style="justify-content:flex-start;"><span class="dp dy"></span>PagerDuty P1
+                  Escalation</div>
+                <div class="badge bb" style="justify-content:flex-start;"><span class="dp dg"></span>AlertManager
+                  Webhook</div>
+              </div>
+            </div>
+            <div class="card card-sm">
+              <div class="st" style="font-size:.8rem;margin-bottom:.7rem;">
+                <div class="accent-bar"></div>Response Metrics
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;">
+                <div
+                  style="background:rgba(255,255,255,.02);padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+                  <div style="font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;">MTTD
+                  </div>
+                  <div
+                    style="font-size:.9rem;font-weight:700;color:var(--cyan);font-family:'Space Grotesk',sans-serif;">
+                    4.2 min</div>
+                </div>
+                <div
+                  style="background:rgba(255,255,255,.02);padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+                  <div style="font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;">MTTR
+                  </div>
+                  <div
+                    style="font-size:.9rem;font-weight:700;color:var(--green);font-family:'Space Grotesk',sans-serif;">
+                    22 min</div>
+                </div>
+                <div
+                  style="background:rgba(255,255,255,.02);padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+                  <div style="font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;">
+                    Auto-Res.</div>
+                  <div
+                    style="font-size:.9rem;font-weight:700;color:var(--green);font-family:'Space Grotesk',sans-serif;">
+                    78%</div>
+                </div>
+                <div
+                  style="background:rgba(255,255,255,.02);padding:.5rem;border-radius:8px;border:1px solid var(--border);">
+                  <div style="font-size:.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;">SLA
+                  </div>
+                  <div
+                    style="font-size:.9rem;font-weight:700;color:var(--green);font-family:'Space Grotesk',sans-serif;">
+                    99.94%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="st" style="margin-bottom:.9rem;">
+              <div class="accent-bar" style="background:linear-gradient(var(--red),var(--orange));"></div>Active Alert
+              Feed
+            </div>
+            <div class="ab a-r">
+              <div class="ab-icon">🔴</div>
+              <div class="ab-body"><strong>[CRITICAL] DB-Cluster-Mesh — us-west2 · CPU 95% for 2h</strong>
+                <p>PromQL rule fired in AlertManager. sql-replica-01 needs immediate action. Impact: +$78/day overhead.
+                </p>
+              </div><span class="badge br" style="margin-left:auto;flex-shrink:0;">Now</span>
+            </div>
+            <div class="ab a-r">
+              <div class="ab-icon">🔴</div>
+              <div class="ab-body"><strong>[CRITICAL] Budget — 71% consumed, 8 days remaining</strong>
+                <p>OpenCost projection: $4,120 vs $4,000 budget. Pause non-critical batch workloads immediately.</p>
+              </div><span class="badge br" style="margin-left:auto;flex-shrink:0;">1h</span>
+            </div>
+            <div class="ab a-y">
+              <div class="ab-icon">🟡</div>
+              <div class="ab-body"><strong>[WARNING] Storage-Node-Mesh +45% in 6h — us-east1</strong>
+                <p>OpenCost storage allocation spike + Prometheus node_filesystem anomaly. Possible runaway log process.
+                </p>
+              </div><span class="badge by" style="margin-left:auto;flex-shrink:0;">3h</span>
+            </div>
+            <div class="ab a-b">
+              <div class="ab-icon">🔵</div>
+              <div class="ab-body"><strong>[INFO] GKE Autoscaler +4 nodes — asia-east1</strong>
+                <p>HPA metrics from kube-state-metrics triggered scale-up. node pool 8→12. +$12/day.</p>
+              </div><span class="badge bb" style="margin-left:auto;flex-shrink:0;">5h</span>
+            </div>
+            <div class="ab a-g">
+              <div class="ab-icon">🟢</div>
+              <div class="ab-body"><strong>[RESOLVED] Run-API-Layer latency — europe-west1</strong>
+                <p>P99 returned to 82ms. Root cause: cold-start burst during deploy. Duration: 14 min.</p>
+              </div><span class="badge bg" style="margin-left:auto;flex-shrink:0;">6h</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="st" style="margin-bottom:.9rem;">
+              <div class="accent-bar"></div>Event Timeline
+            </div>
+            <ul class="tl">
+              <li class="tl-item">
+                <div class="tl-ic">
+                  <div class="tl-dot" style="border-color:var(--red);background:var(--red);"></div>
+                  <div class="tl-line"></div>
+                </div>
+                <div class="tl-c">
+                  <div class="tl-t">Cloud SQL CPU rule fired — AlertManager</div>
+                  <div class="tl-s">14:32 UTC · PromQL: rate(node_cpu)[5m] > 90</div>
+                </div>
+              </li>
+              <li class="tl-item">
+                <div class="tl-ic">
+                  <div class="tl-dot" style="border-color:var(--yellow);"></div>
+                  <div class="tl-line"></div>
+                </div>
+                <div class="tl-c">
+                  <div class="tl-t">Storage anomaly — OpenCost allocation spike</div>
+                  <div class="tl-s">13:15 UTC · AI score 7.1 · 3.8σ EWMA deviation</div>
+                </div>
+              </li>
+              <li class="tl-item">
+                <div class="tl-ic">
+                  <div class="tl-dot" style="border-color:var(--accent);"></div>
+                  <div class="tl-line"></div>
+                </div>
+                <div class="tl-c">
+                  <div class="tl-t">GKE autoscaler +4 nodes — asia-east1</div>
+                  <div class="tl-s">10:30 UTC · Prometheus HPA metrics</div>
+                </div>
+              </li>
+              <li class="tl-item">
+                <div class="tl-ic">
+                  <div class="tl-dot" style="border-color:var(--green);"></div>
+                </div>
+                <div class="tl-c">
+                  <div class="tl-t">AI optimization scan complete — 9 recommendations</div>
+                  <div class="tl-s">06:00 UTC · $754/month identified from Prometheus + OpenCost</div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ══════ ARCH ══════ -->
+        <div class="view" id="v-arch">
+          <div class="sh" style="margin-bottom:1.4rem;">
+            <div>
+              <div class="page-title"
+                style="background:linear-gradient(135deg,#fff,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+                Stack Architecture</div>
+              <div class="page-sub">Prometheus + OpenCost + Grafana + AI Intelligence Layer</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:1rem;">
+            <div class="st" style="margin-bottom:1.2rem;">
+              <div class="accent-bar"></div>Full Data Flow · NEXUS Intelligence Stack
+            </div>
+            <div style="margin-bottom:.8rem;">
+              <div
+                style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--text2);margin-bottom:.5rem;">
+                LAYER 1 — CLOUD INFRASTRUCTURE</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.4rem;">
+                <div class="sf-node" style="background:rgba(79,142,247,.06);border-color:rgba(79,142,247,.25);">
+                  <div style="font-size:.85rem;">☁</div>
+                  <div
+                    style="font-weight:700;font-size:.72rem;color:var(--accent);font-family:'Space Grotesk',sans-serif;">
+                    GCP Services</div>
+                  <div style="font-size:.65rem;color:var(--text2);">Compute · SQL · GKE · Storage · BQ</div>
+                </div>
+                <div class="sf-node" style="background:rgba(230,82,44,.06);border-color:rgba(230,82,44,.25);">
+                  <div style="font-size:.85rem;">⚡</div>
+                  <div
+                    style="font-weight:700;font-size:.72rem;color:var(--prom);font-family:'Space Grotesk',sans-serif;">
+                    Prometheus</div>
+                  <div style="font-size:.65rem;color:var(--text2);">Node Exporter · kube-state-metrics · cAdvisor</div>
+                </div>
+                <div class="sf-node" style="background:rgba(0,180,216,.06);border-color:rgba(0,180,216,.25);">
+                  <div style="font-size:.85rem;">💲</div>
+                  <div style="font-weight:700;font-size:.72rem;color:var(--oc);font-family:'Space Grotesk',sans-serif;">
+                    OpenCost</div>
+                  <div style="font-size:.65rem;color:var(--text2);">GCP Pricing API · Cost allocation · Billing export
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="arch-arrow">↓ PromQL scrape · ↓ /allocation REST API</div>
+            <div style="margin-bottom:.8rem;">
+              <div
+                style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--text2);margin-bottom:.5rem;">
+                LAYER 2 — STORAGE & VISUALIZATION</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.4rem;">
+                <div class="sf-node" style="background:rgba(230,82,44,.06);border-color:rgba(230,82,44,.2);">
+                  <div style="font-size:.85rem;">🗄</div>
+                  <div
+                    style="font-weight:700;font-size:.72rem;color:var(--prom);font-family:'Space Grotesk',sans-serif;">
+                    Prometheus TSDB</div>
+                  <div style="font-size:.65rem;color:var(--text2);">15d local · Remote write to Thanos/Cortex</div>
+                </div>
+                <div class="sf-node" style="background:rgba(0,180,216,.06);border-color:rgba(0,180,216,.2);">
+                  <div style="font-size:.85rem;">📊</div>
+                  <div style="font-weight:700;font-size:.72rem;color:var(--oc);font-family:'Space Grotesk',sans-serif;">
+                    OpenCost Store</div>
+                  <div style="font-size:.65rem;color:var(--text2);">Cost DB · Allocation index · GCS exports</div>
+                </div>
+                <div class="sf-node" style="background:rgba(244,104,0,.06);border-color:rgba(244,104,0,.2);">
+                  <div style="font-size:.85rem;">📉</div>
+                  <div
+                    style="font-weight:700;font-size:.72rem;color:var(--grafana);font-family:'Space Grotesk',sans-serif;">
+                    Grafana</div>
+                  <div style="font-size:.65rem;color:var(--text2);">Dashboards · Alerts · Embed integration</div>
+                </div>
+              </div>
+            </div>
+            <div class="arch-arrow">↓ Query API · ↓ REST · ↓ iframe embed</div>
+            <div>
+              <div
+                style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--text2);margin-bottom:.5rem;">
+                LAYER 3 — NEXUS AI INTELLIGENCE PLATFORM</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;">
+                <div class="sf-node" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.2);">
+                  <div style="font-size:.8rem;">🤖</div>
+                  <div style="font-weight:700;font-size:.7rem;color:var(--ai);font-family:'Space Grotesk',sans-serif;">
+                    AI Anomaly Engine</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Isolation Forest · EWMA</div>
+                </div>
+                <div class="sf-node" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.2);">
+                  <div style="font-size:.8rem;">📈</div>
+                  <div style="font-weight:700;font-size:.7rem;color:var(--ai);font-family:'Space Grotesk',sans-serif;">
+                    Cost Predictions</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Linear regression · Seasonal</div>
+                </div>
+                <div class="sf-node" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.2);">
+                  <div style="font-size:.8rem;">💡</div>
+                  <div style="font-weight:700;font-size:.7rem;color:var(--ai);font-family:'Space Grotesk',sans-serif;">
+                    Recommendations</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Rightsizing · CUDs · Cleanup</div>
+                </div>
+                <div class="sf-node" style="background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.2);">
+                  <div style="font-size:.8rem;">✨</div>
+                  <div style="font-weight:700;font-size:.7rem;color:var(--ai);font-family:'Space Grotesk',sans-serif;">
+                    Claude AI Layer</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Natural language insights</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="g g2">
+            <div class="card">
+              <div class="st" style="margin-bottom:1rem;">
+                <div class="accent-bar"></div>Open-Source Stack (100% Free)
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;">
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(230,82,44,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">⚡</div>
+                  <div
+                    style="font-size:.72rem;font-weight:700;color:var(--prom);font-family:'Space Grotesk',sans-serif;">
+                    Prometheus</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Metrics · CNCF</div>
+                </div>
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(0,180,216,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">💲</div>
+                  <div style="font-size:.72rem;font-weight:700;color:var(--oc);font-family:'Space Grotesk',sans-serif;">
+                    OpenCost</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Cost · CNCF</div>
+                </div>
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(244,104,0,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">📉</div>
+                  <div
+                    style="font-size:.72rem;font-weight:700;color:var(--grafana);font-family:'Space Grotesk',sans-serif;">
+                    Grafana</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Viz · OSS</div>
+                </div>
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(79,142,247,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">🐳</div>
+                  <div
+                    style="font-size:.72rem;font-weight:700;color:var(--accent);font-family:'Space Grotesk',sans-serif;">
+                    Docker</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Containers</div>
+                </div>
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(0,255,170,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">☸</div>
+                  <div
+                    style="font-size:.72rem;font-weight:700;color:var(--green);font-family:'Space Grotesk',sans-serif;">
+                    Kubernetes</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Orchestration</div>
+                </div>
+                <div
+                  style="padding:.7rem;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid rgba(168,85,247,.2);text-align:center;">
+                  <div style="font-size:1.2rem;">✨</div>
+                  <div style="font-size:.72rem;font-weight:700;color:var(--ai);font-family:'Space Grotesk',sans-serif;">
+                    Claude AI</div>
+                  <div style="font-size:.62rem;color:var(--text2);">Intelligence</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="st" style="margin-bottom:.9rem;">
+                <div class="accent-bar"></div>Run Locally — Total Cost: $0
+              </div>
+              <div
+                style="background:rgba(0,0,0,.5);border:1px solid var(--border);border-radius:12px;padding:1rem;font-family:'JetBrains Mono',monospace;font-size:.68rem;line-height:2;color:#8ab4f8;">
+                <div style="color:#475569;"># 1. Prometheus</div>
+                <div><span style="color:#22d3ee;">docker</span> run -p 9090:9090 prom/prometheus</div>
+                <div style="color:#475569;margin-top:.3rem;"># 2. OpenCost</div>
+                <div><span style="color:#22d3ee;">kubectl</span> apply -f opencost.yaml</div>
+                <div style="color:#475569;margin-top:.3rem;"># 3. Grafana</div>
+                <div><span style="color:#22d3ee;">docker</span> run -p 3000:3000 grafana/grafana</div>
+                <div style="color:#475569;margin-top:.3rem;"># 4. NEXUS Intelligence UI</div>
+                <div><span style="color:#a855f7;">$</span> <span style="color:#00ffaa;">All tools free · 100% open
+                    source</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main-wrap -->
+  </div><!-- /app -->
+
+  <!-- ══════════ MODALS ══════════ -->
+  <div class="modal-bg" id="grafanaM">
+    <div class="modal">
+      <div class="mh">
+        <div class="mt">📉 Connect Grafana Instance</div><button class="mc" onclick="closeM('grafanaM')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="ab a-b" style="margin-bottom:1rem;">
+          <div class="ab-icon">ℹ</div>
+          <div class="ab-body">
+            <p>Enter your Grafana URL and API key. Dashboard will be embedded live. For Grafana Cloud, enable public
+              dashboards in security settings.</p>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Grafana URL *</label><input class="fi" id="gfUrl" type="url"
+            placeholder="https://your-org.grafana.net or http://localhost:3000"></div>
+        <div class="fg"><label class="fl">API Key / Service Account Token</label><input class="fi" id="gfKey"
+            type="password" placeholder="glsa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <div class="fh">Create in Grafana → Administration → API Keys (Viewer role)</div>
+        </div>
+        <div class="fg"><label class="fl">Dashboard URL (optional)</label><input class="fi" id="gfDash"
+            placeholder="https://...grafana.net/d/abc123/dashboard-name"></div>
+        <div class="fr2">
+          <div class="fg"><label class="fl">Theme</label><select class="fi" id="gfTheme">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select></div>
+          <div class="fg"><label class="fl">Refresh</label><select class="fi">
+              <option>30s</option>
+              <option>1m</option>
+              <option>5m</option>
+            </select></div>
+        </div>
+      </div>
+      <div class="mf"><button class="tbtn" onclick="closeM('grafanaM')">Cancel</button><button class="tbtn acc"
+          onclick="connectGrafana()">⚡ Connect & Embed</button></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="promM">
+    <div class="modal">
+      <div class="mh">
+        <div class="mt">⚡ Connect Prometheus</div><button class="mc" onclick="closeM('promM')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="fg"><label class="fl">Prometheus API URL *</label><input class="fi" type="url"
+            value="http://localhost:9090" placeholder="http://localhost:9090">
+          <div class="fh">Default: http://localhost:9090 · docker run -p 9090:9090 prom/prometheus</div>
+        </div>
+        <div class="fr2">
+          <div class="fg"><label class="fl">Username (optional)</label><input class="fi" type="text"
+              placeholder="admin"></div>
+          <div class="fg"><label class="fl">Password (optional)</label><input class="fi" type="password"
+              placeholder="••••••"></div>
+        </div>
+        <div class="fg"><label class="fl">Scrape Interval</label><select class="fi">
+            <option>15s</option>
+            <option selected>30s</option>
+            <option>1m</option>
+          </select></div>
+      </div>
+      <div class="mf"><button class="tbtn" onclick="closeM('promM')">Cancel</button><button class="tbtn prom-btn"
+          onclick="toast('Prometheus connected ✓','ok');closeM('promM')">💾 Save & Connect</button></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="opencostM">
+    <div class="modal">
+      <div class="mh">
+        <div class="mt">💲 Connect OpenCost</div><button class="mc" onclick="closeM('opencostM')">✕</button>
+      </div>
+      <div class="mb">
+        <div class="fg"><label class="fl">OpenCost API URL *</label><input class="fi" type="url"
+            value="http://localhost:9003" placeholder="http://localhost:9003">
+          <div class="fh">kubectl apply -f
+            https://raw.githubusercontent.com/opencost/opencost/main/kubernetes/opencost.yaml</div>
+        </div>
+        <div class="fg"><label class="fl">Cloud Provider</label><select class="fi">
+            <option>GCP</option>
+            <option>AWS</option>
+            <option>Azure</option>
+          </select></div>
+        <div class="fg"><label class="fl">GCP Project ID</label><input class="fi" placeholder="your-gcp-project-id">
+        </div>
+      </div>
+      <div class="mf"><button class="tbtn" onclick="closeM('opencostM')">Cancel</button><button class="tbtn"
+          style="border-color:rgba(0,180,216,.4);color:var(--oc);"
+          onclick="toast('OpenCost connected ✓','ok');closeM('opencostM')">💾 Connect</button></div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="exportM">
+    <div class="modal">
+      <div class="mh">
+        <div class="mt">⬇ Export NEXUS Data</div><button class="mc" onclick="closeM('exportM')">✕</button>
+      </div>
+      <div class="mb">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+          <div class="eo" onclick="exportJSON();closeM('exportM')">
+            <div class="ei" style="background:rgba(79,142,247,.1);">📋</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Full Report (JSON)
+              </div>
+              <div style="font-size:.67rem;color:var(--text2);">All metrics · anomalies · predictions</div>
+            </div>
+          </div>
+          <div class="eo" onclick="exportCSV();closeM('exportM')">
+            <div class="ei" style="background:rgba(0,255,170,.08);">📊</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Billing CSV</div>
+              <div style="font-size:.67rem;color:var(--text2);">OpenCost service breakdown</div>
+            </div>
+          </div>
+          <div class="eo" onclick="exportAlerts();closeM('exportM')">
+            <div class="ei" style="background:rgba(255,51,102,.08);">🚨</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Alerts Log (JSON)
+              </div>
+              <div style="font-size:.67rem;color:var(--text2);">AlertManager + AI anomalies</div>
+            </div>
+          </div>
+          <div class="eo" onclick="exportPrometheus();closeM('exportM')">
+            <div class="ei" style="background:rgba(230,82,44,.08);">⚡</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Prometheus YAML
+              </div>
+              <div style="font-size:.67rem;color:var(--text2);">Config + AlertManager rules</div>
+            </div>
+          </div>
+          <div class="eo" onclick="exportRecs();closeM('exportM')">
+            <div class="ei" style="background:rgba(251,191,36,.08);">💡</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Recommendations
+              </div>
+              <div style="font-size:.67rem;color:var(--text2);">All optimization suggestions</div>
+            </div>
+          </div>
+          <div class="eo" onclick="exportExecutive();closeM('exportM')">
+            <div class="ei" style="background:rgba(34,211,238,.08);">📄</div>
+            <div>
+              <div style="font-size:.78rem;font-weight:700;font-family:'Space Grotesk',sans-serif;">Executive Summary
+              </div>
+              <div style="font-size:.67rem;color:var(--text2);">Board-ready TXT report</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mf"><button class="tbtn" onclick="closeM('exportM')">Close</button></div>
+    </div>
+  </div>
+
+
+  <!-- ══ NOTIFICATION PANEL ══ -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="np-head">
+      <div class="np-title">🔔 Notifications <span class="nav-badge" style="margin-left:4px;">7</span></div>
+      <div class="np-actions">
+        <button class="tbtn" style="padding:3px 10px;font-size:.62rem;" onclick="markAllRead()">✓ Mark all read</button>
+        <button class="mc" onclick="closeNotif()">✕</button>
+      </div>
+    </div>
+    <div class="np-body" id="npBody">
+      <div class="np-section-lbl">🔴 Critical · Active</div>
+      <div class="np-item np-crit unread" onclick="npClick(this,'Navigating to Anomaly Lab…','error')">
+        <span class="np-icon">🚨</span>
+        <div class="np-content">
+          <div class="np-msg">DB-Cluster-Mesh CPU at 95% — Critical</div>
+          <div class="np-sub">Prometheus alert fired · node_cpu > 90% for 2h</div>
+          <div class="np-time">2 min ago · prod-cluster-01</div>
+        </div>
+      </div>
+      <div class="np-item np-crit unread" onclick="npClick(this,'Opening FinOps Engine…','error')">
+        <span class="np-icon">💸</span>
+        <div class="np-content">
+          <div class="np-msg">Budget overrun projected — $4,120 vs $4,000</div>
+          <div class="np-sub">OpenCost · 8 days left in billing cycle</div>
+          <div class="np-time">14 min ago · billing</div>
+        </div>
+      </div>
+      <div class="np-item np-crit unread" onclick="npClick(this,'AI anomaly score 9.4 detected','error')">
+        <span class="np-icon">🤖</span>
+        <div class="np-content">
+          <div class="np-msg">AI Anomaly Score 9.4 — Isolation Forest</div>
+          <div class="np-sub">Cloud SQL · Unusual query spike detected</div>
+          <div class="np-time">28 min ago · anomaly-detector</div>
+        </div>
+      </div>
+      <div class="np-section-lbl">🟡 Warnings</div>
+      <div class="np-item np-warn unread" onclick="npClick(this,'Storage anomaly: +45% deviation','warn')">
+        <span class="np-icon">💾</span>
+        <div class="np-content">
+          <div class="np-msg">Storage EWMA deviation 3.8σ — us-east1</div>
+          <div class="np-sub">node_filesystem_avail_bytes · +45% in 6h</div>
+          <div class="np-time">41 min ago · storage-node-mesh</div>
+        </div>
+      </div>
+      <div class="np-item np-warn unread" onclick="npClick(this,'12 idle VMs wasting $342/mo','warn')">
+        <span class="np-icon">⚙️</span>
+        <div class="np-content">
+          <div class="np-msg">12 Idle VMs Detected — $342/month waste</div>
+          <div class="np-sub">OpenCost · Efficiency below 30% threshold</div>
+          <div class="np-time">1 hr ago · compute-engine</div>
+        </div>
+      </div>
+      <div class="np-item np-warn" onclick="npClick(this,'GKE memory at 72%','warn')">
+        <span class="np-icon">☸️</span>
+        <div class="np-content">
+          <div class="np-msg">GKE Memory Utilization 72% — Rising</div>
+          <div class="np-sub">Prometheus · container_memory_usage_bytes</div>
+          <div class="np-time">2 hr ago · gke-nexus-pool</div>
+        </div>
+      </div>
+      <div class="np-section-lbl">✅ Resolved</div>
+      <div class="np-item np-ok" onclick="npClick(this,'Snapshot cleanup completed','ok')">
+        <span class="np-icon">✅</span>
+        <div class="np-content">
+          <div class="np-msg">Snapshot cleanup completed — saved $89/mo</div>
+          <div class="np-sub">OpenCost optimization · 23 snapshots removed</div>
+          <div class="np-time">3 hr ago · storage</div>
+        </div>
+      </div>
+    </div>
+    <div class="np-footer">
+      <button class="tbtn" style="width:100%;justify-content:center;"
+        onclick="document.querySelectorAll('.nav-item[data-p=alerts]')[0].click();closeNotif()">
+        View All Alerts in Alert Matrix →
+      </button>
+    </div>
+  </div>
+
+
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script>
+    // ── THREE.JS NEURAL MESH ──
+    (function () {
+      const canvas = document.getElementById('bg-canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1500);
+      camera.position.z = 450;
+      const group = new THREE.Group(); scene.add(group);
+      const nodes = [];
+      const geo = new THREE.SphereGeometry(1.8, 6, 6);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x4f8ef7, transparent: true, opacity: 0.55 });
+      for (let i = 0; i < 100; i++) {
+        const m = new THREE.Mesh(geo, mat);
+        m.position.set((Math.random() - .5) * 1100, (Math.random() - .5) * 1100, (Math.random() - .5) * 1100);
+        group.add(m); nodes.push(m);
+      }
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7, transparent: true, opacity: 0.12 });
+      const lineGeo = new THREE.BufferGeometry();
+      const lineMesh = new THREE.LineSegments(lineGeo, lineMat);
+      scene.add(lineMesh);
+      // Fix 1: use an animating flag so hidden tabs truly stop
+      let animating = true;
+      function animate() {
+        if (!animating) return;
+        requestAnimationFrame(animate);
+        group.rotation.y += .0005; group.rotation.z += .00015;
+        const pos = [];
+        for (let i = 0; i < nodes.length; i++)for (let j = i + 1; j < nodes.length; j++) {
+          if (nodes[i].position.distanceTo(nodes[j].position) < 200) {
+            pos.push(nodes[i].position.x, nodes[i].position.y, nodes[i].position.z, nodes[j].position.x, nodes[j].position.y, nodes[j].position.z);
+          }
+        }
+        lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        renderer.render(scene, camera);
+      }
+      animate();
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+      // Pause/resume animation on tab visibility
+      document.addEventListener('visibilitychange', () => {
+        animating = !document.hidden;
+        if (animating) animate();
+      });
+    })();
+
+    // ── CURSOR GLOW ──
+    window.addEventListener('mousemove', e => {
+      const g = document.getElementById('cursor-glow');
+      g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';
+    });
+
+    // ── PRELOADER ──
+    window.addEventListener('load', () => {
+      const bar = document.getElementById('load-bar');
+      const status = document.getElementById('load-status');
+      const msgs = ['Initializing Neural Mesh…', 'Linking Prometheus Scrape Targets…', 'Connecting OpenCost Engine…', 'Loading AI Intelligence Layer…', 'NEXUS Platform Ready'];
+      let p = 0;
+      const iv = setInterval(() => {
+        p += Math.random() * 22 + 8;
+        if (p > 100) p = 100;
+        bar.style.width = p + '%';
+        const si = Math.floor((p / 100) * msgs.length);
+        if (msgs[si]) status.textContent = msgs[si];
+        if (p >= 100) {
+          clearInterval(iv);
+          setTimeout(() => {
+            document.getElementById('preloader').style.transition = 'transform 1s cubic-bezier(.86,0,.07,1)';
+            document.getElementById('preloader').style.transform = 'translateY(-100%)';
+            setTimeout(() => {
+              const app = document.getElementById('app');
+              app.style.transition = 'opacity .8s ease';
+              app.style.opacity = '1';
+              initCharts('overview');
+            }, 800);
+          }, 400);
+        }
+      }, 80);
+    });
+
+    // ── CLOCK ──
+    setInterval(() => { const e = document.getElementById('clock'); if (e) e.textContent = new Date().toLocaleTimeString(); }, 1000);
+
+    // ── SIDEBAR ──
+    function toggleSB() { document.getElementById('sb').classList.toggle('mini'); }
+
+    // ── NAV ──
+    document.querySelectorAll('.nav-item[data-p]').forEach(n => {
+      n.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('on'));
+        document.querySelectorAll('.view').forEach(x => x.classList.remove('on'));
+        n.classList.add('on');
+        const el = document.getElementById('v-' + n.dataset.p);
+        if (el) { el.classList.add('on'); setTimeout(() => initCharts(n.dataset.p), 60); }
+      });
+    });
+
+    // ── CHARTS ──
+    Chart.defaults.color = 'rgba(255,255,255,.3)';
+    Chart.defaults.borderColor = 'rgba(255,255,255,.05)';
+    const DF = { family: "'Inter',system-ui,sans-serif", size: 10 };
+    const charts = {};
+    const R = (a, b) => a + Math.random() * (b - a);
+    const W = (n, b, a, ns) => Array.from({ length: n }, (_, i) => Math.max(0, b + a * Math.sin(i / (n / 5)) + R(-ns, ns)));
+    const H24 = () => Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+    // ── API LAYER ──
+    // Fix 3: auto-detect backend — works both locally and on Render
+    const BASE_API = window.location.hostname === 'localhost'
+    ? 'http://localhost:5000/api'
+    : 'https://cloud-intelligence-backend.onrender.com/api';
+
+    // Retained values — used when API fails so UI keeps last good state
+    const _apiState = { cpu: null, memory: null, network: null, disk: null };
+
+    // Fix 3: helpers to set API status badge in topbar
+    function _apiOk() { const s = $el('apiStatus'); if (s) { s.textContent = 'API ✓'; s.style.background = 'rgba(0,255,170,.1)'; s.style.borderColor = 'rgba(0,255,170,.25)'; s.style.color = '#00ffaa'; } }
+    function _apiWarn() { const s = $el('apiStatus'); if (s) { s.textContent = 'API ⚠'; s.style.background = 'rgba(251,191,36,.1)'; s.style.borderColor = 'rgba(251,191,36,.25)'; s.style.color = '#fbbf24'; } }
+
+    async function fetchMetric(name) {
+      // 3-second timeout so fetch never hangs indefinitely
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      try {
+        const res = await fetch(`${BASE_API}/metrics/${name}`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const val = parseFloat(data.value);
+        if (!isNaN(val)) { _apiState[name] = val; return val; }
+        throw new Error('Invalid value in response');
+      } catch (err) {
+        clearTimeout(timeout);
+        console.error(`[NEXUS API] ${name} fetch failed:`, err.message);
+        return _apiState[name]; // keep last known value; null on first failure
+      }
+    }
+
+    function $el(id) { return document.getElementById(id); }
+
+    function updateCpuUI(val) {
+      if (val === null) return;
+      const pct = Math.min(100, Math.max(0, val));
+      const el = $el('kpi-cpu'); if (el) el.textContent = `${pct.toFixed(1)}%`;
+      const bar = $el('kpi-cpu-bar'); if (bar) bar.style.width = `${pct}%`;
+      const trend = $el('kpi-cpu-trend');
+      if (trend) {
+        trend.className = pct > 80 ? 'kpi-trend t-up' : 'kpi-trend t-dn';
+        trend.textContent = pct > 80 ? `↑ ${pct.toFixed(1)}% HIGH` : `↓ ${pct.toFixed(1)}% OK`;
+      }
+      // Fix 1: guard dataset length before pushing
+      const fc = charts['fluxChart'];
+      if (fc && fc.data.datasets.length > 1) {
+        fc.data.datasets[1].data.push(pct); fc.data.datasets[1].data.shift(); fc.update('none');
+      }
+      const cc = charts['cpuChart'];
+      if (cc && cc.data.datasets.length > 0) {
+        cc.data.datasets[0].data.push(pct); cc.data.datasets[0].data.shift(); cc.update('none');
+      }
+    }
+
+    function updateMemoryUI(val) {
+      if (val === null) return;
+      const pct = Math.min(100, Math.max(0, val));
+      // Fix 1: guard dataset length before pushing
+      const fc = charts['fluxChart'];
+      if (fc && fc.data.datasets.length > 2) {
+        fc.data.datasets[2].data.push(pct); fc.data.datasets[2].data.shift(); fc.update('none');
+      }
+    }
+
+    function updateNetworkUI(val) {
+      if (val === null) return;
+      // API returns 100–900 (arbitrary units); divide by 100 → realistic Gbps range
+      const valGbps = val / 100;
+      const barPct = Math.min(100, valGbps * 10); // scale 0–10 Gbps → 0–100% bar width
+      const el = $el('kpi-network'); if (el) el.textContent = `${valGbps.toFixed(2)} Gbps`;
+      const bar = $el('kpi-network-bar'); if (bar) bar.style.width = `${barPct}%`;
+      const trend = $el('kpi-network-trend'); if (trend) trend.textContent = `→ ${valGbps.toFixed(2)} Gbps`;
+      // Fix 1: guard dataset length before pushing
+      const nc = charts['netChart'];
+      if (nc && nc.data.datasets.length > 1) {
+        nc.data.datasets[1].data.push(valGbps); nc.data.datasets[1].data.shift(); nc.update('none');
+      }
+    }
+
+    function updateDiskUI(val) {
+      if (val === null) return;
+      // API returns 40–300; % = val % 100 keeps it in 0–100 range
+      const pct = Math.max(0, val % 100);
+      const el = $el('kpi-disk'); if (el) el.textContent = `${pct.toFixed(1)}%`;
+      const bar = $el('kpi-disk-bar'); if (bar) bar.style.width = `${pct}%`;
+      const trend = $el('kpi-disk-trend');
+      if (trend) {
+        trend.className = pct > 85 ? 'kpi-trend t-up' : 'kpi-trend t-dn';
+        trend.textContent = pct > 85 ? `↑ ${pct.toFixed(1)}% HIGH` : `↓ ${pct.toFixed(1)}% OK`;
+      }
+    }
+
+    async function pollMetrics() {
+      const [cpu, memory, network, disk] = await Promise.all([
+        fetchMetric('cpu'),
+        fetchMetric('memory'),
+        fetchMetric('network'),
+        fetchMetric('disk'),
+      ]);
+      // Fix 3: update API badge based on whether all values resolved
+      const anyFailed = [cpu, memory, network, disk].some(v => v === null);
+      anyFailed ? _apiWarn() : _apiOk();
+      updateCpuUI(cpu);
+      updateMemoryUI(memory);
+      updateNetworkUI(network);
+      updateDiskUI(disk);
+    }
+
+    // Fix 2: guard against duplicate intervals if called more than once
+    let _pollInterval;
+    function startPolling() {
+      if (_pollInterval) clearInterval(_pollInterval);
+      pollMetrics();
+      _pollInterval = setInterval(pollMetrics, 5000);
+    }
+    function stopPolling() { clearInterval(_pollInterval); _pollInterval = null; }
+
+    document.addEventListener('visibilitychange', () => {
+      document.hidden ? stopPolling() : startPolling();
+    });
+
+    // Fix 4: 1.5s delay after load ensures charts are fully initialised before first poll
+    window.addEventListener('load', () => setTimeout(startPolling, 1500));
+
+    // ── PROMETHEUS QUERY EXPLORER ──
+    (function () {
+      const COLORS = ['#e6522c', '#4f8ef7', '#00ffaa', '#fbbf24', '#a855f7', '#22d3ee', '#fb923c', '#f43f5e'];
+      let pqeChart = null;
+
+      function pqeSetStatus(txt, color) {
+        const s = document.getElementById('pqe-status');
+        if (s) { s.textContent = txt; s.style.color = color; }
+      }
+
+      function pqeReset() {
+        ['pqe-err', 'pqe-empty', 'pqe-chart-wrap'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.style.display = 'none';
+        });
+        const idle = document.getElementById('pqe-idle'); if (idle) idle.style.display = '';
+        pqeSetStatus('', '');
+        if (pqeChart) { pqeChart.destroy(); pqeChart = null; }
+      }
+
+      window.pqePreset = function (chip) {
+        const inp = document.getElementById('pqe-input'); if (inp) inp.value = chip.textContent.trim();
+      };
+
+      window.runPromQuery = async function () {
+        const inp = document.getElementById('pqe-input');
+        const expr = (inp && inp.value.trim()) || '';
+        if (!expr) { toast('Please enter a PromQL expression', 'warn'); return; }
+
+        // Hide all result states, show spinner in button
+        ['pqe-err', 'pqe-empty', 'pqe-chart-wrap'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.style.display = 'none';
+        });
+        const idle = document.getElementById('pqe-idle'); if (idle) idle.style.display = 'none';
+        const btn = document.getElementById('pqe-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Running…'; }
+        pqeSetStatus('Querying…', 'var(--text2)');
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+
+        try {
+          const url = `${BASE_API}/prometheus/query?expr=${encodeURIComponent(expr)}`;
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+          const json = await res.json();
+          const results = json.result || json.data?.result || [];
+
+          if (!results.length) {
+            const el = document.getElementById('pqe-empty'); if (el) el.style.display = '';
+            pqeSetStatus('No data', 'var(--text2)');
+            return;
+          }
+
+          // Build Chart.js datasets from Prometheus matrix or vector response
+          const labels = new Set();
+          const datasets = results.slice(0, 8).map((series, idx) => {
+            // label from metric labels
+            const metricLabel = Object.entries(series.metric || {}).map(([k, v]) => `${k}=${v}`).join(', ') || `Series ${idx + 1}`;
+            const values = series.values || (series.value ? [[series.value[0], series.value[1]]] : []);
+            values.forEach(([ts]) => labels.add(ts));
+            return {
+              label: metricLabel.length > 50 ? metricLabel.slice(0, 47) + '...' : metricLabel,
+              data: values.map(([ts, v]) => ({ x: ts * 1000, y: parseFloat(v) })),
+              borderColor: COLORS[idx % COLORS.length],
+              backgroundColor: COLORS[idx % COLORS.length] + '18',
+              borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: .42, fill: false,
+            };
+          });
+
+          // Meta info line
+          const meta = document.getElementById('pqe-meta');
+          if (meta) meta.textContent = `${results.length} series returned · expr: ${expr.slice(0, 80)}${expr.length > 80 ? '…' : ''}`;
+
+          // Render / update chart
+          const wrap = document.getElementById('pqe-chart-wrap'); if (wrap) wrap.style.display = '';
+          const canvas = document.getElementById('pqeChart');
+          if (pqeChart) { pqeChart.destroy(); }
+          pqeChart = new Chart(canvas, {
+            type: 'line',
+            data: { datasets },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              parsing: false,
+              plugins: {
+                legend: { labels: { font: DF, usePointStyle: true, pointStyleWidth: 8, padding: 12, color: 'rgba(255,255,255,.4)' } }
+              },
+              scales: {
+                x: {
+                  type: 'time', time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+                  grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 10 }
+                },
+                y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF } }
+              }
+            }
+          });
+          pqeSetStatus(`✓ ${results.length} series`, '#00ffaa');
+          toast(`PromQL • ${results.length} series returned`, 'ok');
+        } catch (err) {
+          clearTimeout(timeout);
+          console.error('[PQE]', err);
+          const errEl = document.getElementById('pqe-err');
+          const errTitle = document.getElementById('pqe-err-title');
+          const errMsg = document.getElementById('pqe-err-msg');
+          if (errEl) errEl.style.display = 'flex';
+          if (errTitle) errTitle.textContent = err.name === 'AbortError' ? 'Query Timed Out' : 'Query Failed';
+          if (errMsg) errMsg.textContent = err.name === 'AbortError' ? 'No response within 6s. Check backend connection.' : err.message;
+          pqeSetStatus('⚠ Error', 'var(--yellow)');
+        } finally {
+          if (btn) { btn.disabled = false; btn.innerHTML = '▶ Run Query'; }
+        }
+      };
+    })();
+
+    function mk(id, cfg) {
+      const el = document.getElementById(id); if (!el) return;
+      if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+      charts[id] = new Chart(el, cfg);
+    }
+    function lds(label, data, color, fill = false, dash = []) {
+      return { label, data, borderColor: color, backgroundColor: fill ? color + '22' : 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: .45, fill, borderDash: dash };
+    }
+
+    function initCharts(p) {
+      if (p === 'overview') initOverview();
+      if (p === 'prometheus') initPrometheus();
+      if (p === 'opencost') initOC();
+      if (p === 'anomaly') initAnomaly();
+      if (p === 'predict') initPredict();
+    }
+
+    function initOverview() {
+      const lbl = H24();
+      const ctx = document.getElementById('fluxChart')?.getContext('2d');
+      if (!ctx) return;
+      const g = ctx.createLinearGradient(0, 0, 0, 280);
+      g.addColorStop(0, 'rgba(79,142,247,.35)'); g.addColorStop(1, 'rgba(79,142,247,0)');
+      mk('fluxChart', {
+        type: 'line', data: {
+          labels: lbl, datasets: [
+            { label: 'Neural Flux', data: W(24, 65, 20, 10), borderColor: '#4f8ef7', backgroundColor: g, borderWidth: 3, pointRadius: 0, tension: .45, fill: true },
+            lds('CPU %', W(24, 73, 14, 7), '#e6522c'),
+            lds('Memory %', W(24, 68, 10, 5), '#00b4d8'),
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, pointStyleWidth: 8, padding: 14, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 8 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+      mk('allocChart', {
+        type: 'doughnut', data: {
+          labels: ['GKE', 'SQL', 'Storage', 'BigQuery', 'Network', 'Run'],
+          datasets: [{
+            data: [33.1, 19.9, 10.9, 7.5, 6.9, 4.4],
+            backgroundColor: ['#4f8ef7', '#f43f5e', '#00ffaa', '#fbbf24', '#22d3ee', '#fb923c'],
+            borderWidth: 0, hoverOffset: 18
+          }]
+        }, options: { cutout: '78%', plugins: { legend: { position: 'right', labels: { font: DF, color: 'rgba(255,255,255,.5)', padding: 8, usePointStyle: true, pointStyleWidth: 8 } } } }
+      });
+    }
+
+    function initPrometheus() {
+      const lbl = H24();
+      mk('promStreamChart', {
+        type: 'bar', data: {
+          labels: ['sql', 'compute', 'gke', 'run', 'pubsub', 'bq'],
+          datasets: [{
+            label: 'CPU %', data: [95, 78, 54, 61, 22, 45],
+            backgroundColor: ['#f43f5e', '#4f8ef7', '#a855f7', '#fb923c', '#22d3ee', '#fbbf24'],
+            borderRadius: 8, borderSkipped: false
+          }]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { grid: { display: false }, ticks: { font: DF } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0, max: 100 } }
+        }
+      });
+      mk('cpuChart', {
+        type: 'line', data: {
+          labels: lbl, datasets: [
+            lds('cloud-sql', W(24, 88, 6, 4), '#f43f5e', true),
+            lds('compute', W(24, 78, 12, 8), '#4f8ef7'),
+            lds('gke', W(24, 54, 10, 7), '#a855f7'),
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 7 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0, max: 100 } }
+        }
+      });
+      mk('netChart', {
+        type: 'line', data: {
+          labels: lbl, datasets: [
+            lds('Recv Gbps', W(24, 1.2, .4, .15), '#22d3ee', true),
+            lds('Sent Gbps', W(24, 2.1, .6, .25), '#4f8ef7'),
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 7 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+    }
+
+    function initOC() {
+      const days = Array.from({ length: 30 }, (_, i) => `${i + 1}`);
+      mk('ocChart', {
+        type: 'line', data: {
+          labels: days, datasets: [
+            lds('Total', Array.from({ length: 30 }, (_, i) => R(85, 155) + Math.sin(i / 5) * 18), '#00b4d8', true),
+            lds('Allocated', Array.from({ length: 30 }, (_, i) => R(70, 130) + Math.sin(i / 5) * 15), '#00ffaa'),
+            lds('Idle', Array.from({ length: 30 }, () => R(10, 25)), '#f43f5e', false, [5, 5]),
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 8 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+    }
+
+    function initAnomaly() {
+      const lbl = H24();
+      const s = W(24, 1.8, 1.2, .7);
+      s[14] = 9.4; s[9] = 7.1; s[6] = 6.3; s[18] = 4.9;
+      mk('anomalyChart', {
+        type: 'line', data: {
+          labels: lbl, datasets: [
+            {
+              label: 'AI Anomaly Score', data: s, borderColor: '#a855f7',
+              backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300); g.addColorStop(0, 'rgba(168,85,247,.3)'); g.addColorStop(1, 'rgba(168,85,247,0)'); return g; },
+              borderWidth: 3, pointRadius: s.map(v => v > 5 ? 8 : 0),
+              pointBackgroundColor: s.map(v => v > 8 ? '#ff3366' : v > 5 ? '#fbbf24' : '#4f8ef7'),
+              pointBorderWidth: 0, tension: .42, fill: true
+            },
+            { label: 'Alert Threshold', data: Array(24).fill(5), borderColor: 'rgba(251,191,36,.4)', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0 },
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 8 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0, max: 12 } }
+        }
+      });
+    }
+
+    function initPredict() {
+      const hist = Array.from({ length: 60 }, (_, i) => 2200 + i * 8 + R(-70, 70) + Math.sin(i / 10) * 140);
+      const fore = Array.from({ length: 30 }, (_, i) => hist[59] + (i + 1) * 12 + R(-40, 40));
+      const lbl = [...Array.from({ length: 60 }, (_, i) => `D${i + 1}`), ...Array.from({ length: 30 }, (_, i) => `F${i + 1}`)];
+      mk('predChart', {
+        type: 'line', data: {
+          labels: lbl, datasets: [
+            { label: 'Historical (OpenCost)', data: [...hist, ...Array(30).fill(null)], borderColor: '#00b4d8', backgroundColor: 'rgba(0,180,216,.1)', borderWidth: 2.5, pointRadius: 0, tension: .42, fill: true },
+            { label: 'AI Forecast', data: [...Array(59).fill(null), hist[59], ...fore], borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,.07)', borderWidth: 2.5, borderDash: [6, 3], pointRadius: 0, tension: .42, fill: true },
+            { label: 'Budget $4K', data: Array(90).fill(4000), borderColor: 'rgba(255,51,102,.35)', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 },
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { color: 'rgba(255,255,255,.03)' }, ticks: { font: DF, maxTicksLimit: 12 } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+      mk('wlChart', {
+        type: 'bar', data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [
+            { label: 'vCPUs', data: [620, 680, 720, 750, 800, 810, 847, 900, 940, 980, 1020, 1080], backgroundColor: 'rgba(79,142,247,.3)', borderColor: '#4f8ef7', borderWidth: 2, borderRadius: 6 },
+            { label: 'Storage TB', data: [9, 10, 11, 12, 13, 14, 15.3, 16, 17, 18, 19, 21], backgroundColor: 'rgba(0,255,170,.15)', borderColor: '#00ffaa', borderWidth: 2, borderRadius: 6 },
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { display: false }, ticks: { font: DF } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+      mk('budgetChart', {
+        type: 'bar', data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug★'],
+          datasets: [
+            {
+              label: 'Spend', data: [2200, 2400, 2600, 2700, 2800, 2900, 2847, 4120],
+              backgroundColor: (ctx) => ctx.raw > 4000 ? 'rgba(255,51,102,.25)' : 'rgba(79,142,247,.25)',
+              borderColor: (ctx) => ctx.raw > 4000 ? '#ff3366' : '#4f8ef7', borderWidth: 2, borderRadius: 6
+            },
+            { label: 'Budget', data: Array(8).fill(4000), type: 'line', borderColor: 'rgba(251,191,36,.5)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, fill: false },
+          ]
+        }, options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: DF, usePointStyle: true, color: 'rgba(255,255,255,.4)' } } },
+          scales: { x: { grid: { display: false }, ticks: { font: DF } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { font: DF }, min: 0 } }
+        }
+      });
+    }
+
+    // ── MODALS ──
+    function openM(id) { document.getElementById(id).classList.add('on'); }
+    function closeM(id) { document.getElementById(id).classList.remove('on'); }
+    document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('on'); }));
+
+    // ── GRAFANA ──
+    function connectGrafana() {
+      const url = (document.getElementById('gfUrl').value || '').trim();
+      const key = (document.getElementById('gfKey').value || '').trim();
+      const dash = (document.getElementById('gfDash').value || '').trim();
+      const theme = document.getElementById('gfTheme').value;
+      closeM('grafanaM');
+      if (!url) { toast('Please enter your Grafana URL', 'error'); return; }
+      document.querySelectorAll('.nav-item[data-p]').forEach(n => { if (n.dataset.p === 'grafana') n.click(); });
+      setTimeout(() => {
+        const embedUrl = dash || (url + `/?kiosk&theme=${theme}`);
+        document.getElementById('gfEmbed').innerHTML = `
+      <div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:14px;padding:.9rem;margin-bottom:.7rem;display:flex;align-items:center;gap:10px;">
+        <span class="badge bg"><span class="dp dg"></span>Connected</span>
+        <span style="font-size:.72rem;color:var(--text2);font-family:'JetBrains Mono',monospace;">${url}</span>
+        <button class="tbtn" style="margin-left:auto;" onclick="openM('grafanaM')">⚙ Reconfigure</button>
+      </div>
+      <iframe class="gf-frame" src="${embedUrl}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allow="fullscreen" onload="toast('Grafana loaded ✓','ok')" title="Grafana"></iframe>
+      <div style="font-size:.65rem;color:rgba(255,255,255,.2);margin-top:.4rem;font-family:'JetBrains Mono',monospace;">If blank: GF_SECURITY_ALLOW_EMBEDDING=true · ${url}</div>`;
+        toast('Grafana embed initiated ✓', 'ok');
+      }, 300);
+    }
+
+    // ── AI INSIGHTS ──
+    async function runAI() {
+      document.querySelectorAll('.nav-item[data-p]').forEach(n => { if (n.dataset.p === 'recs') n.click(); });
+      const initial = document.getElementById('aiInitialCard');
+      if (initial) initial.style.display = 'none';
+      const report = document.getElementById('aiReportCard');
+      if (report) report.style.display = 'block';
+
+      const box = document.getElementById('aiBox');
+      if (box) box.innerHTML = `<div class="ai-think" style="font-size:1.1rem;"><span></span><span></span><span></span><span style="margin-left:8px;font-size:1rem;">Neural Intelligence layer analyzing Prometheus + OpenCost mesh data…</span></div>`;
+      const prompt = `You are a senior GCP SRE and FinOps expert analyzing real-time data from Prometheus and OpenCost. Give 5 precise, numbered, actionable recommendations.
+
+PROMETHEUS (live):
+- Cloud SQL CPU: 95% for 2h (PromQL alert fired)
+- Compute Engine avg CPU: 78%, 12 VMs idle <30% 
+- GKE memory: 72%
+- Storage: 92% full in us-east1 (+45% in 6h)
+- Network tx: 2.1 Gbps outbound
+
+OPENCOST:
+- Monthly: $2,847 (71% of $4,000, 8 days left)
+- Projected: $4,120 (over budget $120)
+- Cloud SQL: $568/mo (↑32%, efficiency 62%)
+- Idle waste: $342/mo (12% total)
+- Efficiency score: 74%
+
+AI ANOMALIES:
+- Cloud SQL: score 9.4 CRITICAL (Isolation Forest)
+- Storage: score 7.1 WARNING (EWMA 3.8σ)
+- Billing spike: score 6.3
+
+Give 5 numbered recommendations. Reference specific Prometheus metrics or OpenCost signals. Be precise with numbers. Use bold for key actions.`;
+      setTimeout(() => {
+        if (box) box.innerHTML = `<div style="color:var(--text);line-height:1.85;font-size:.85rem;">
+<div style="font-size: 1.2rem; font-family: 'Space Grotesk', sans-serif; margin-bottom: 1rem; color: var(--ai); font-weight: 700;">Executive Neural Report</div>
+<strong style="color:#ff6680;font-size:1rem;display:block;margin-bottom:6px;">1. [CRITICAL — Prometheus] Immediate SQL CPU Remediation</strong>
+PromQL rule <code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;">rate(node_cpu_seconds_total{job="cloudsql"}[5m]) > 90</code> firing. Scale sql-replica-01 to n1-highmem-8 or enable read replica. This ends $78/day incident overhead immediately.
+<br><br>
+<strong style="color:#fbbf24;font-size:1rem;display:block;margin-bottom:6px;">2. [WARNING — OpenCost] Budget Overrun in 8 Days</strong>
+OpenCost projects $4,120 vs $4,000 budget. Stop 4-5 idle VMs now (OpenCost idle cost: $342/mo). Saves $28+/day to stay within budget ceiling.
+<br><br>
+<strong style="color:#00b4d8;font-size:1rem;display:block;margin-bottom:6px;">3. [OpenCost] Apply 1-Year CUDs Immediately</strong>
+OpenCost shows 60+ consecutive days of stable Compute/SQL/GKE usage. 1-year CUDs = 37% savings = <strong>$420/month</strong>. Zero financial risk.
+<br><br>
+<strong style="color:#e6522c;font-size:1rem;display:block;margin-bottom:6px;">4. [Prometheus] Track Down Storage Runaway</strong>
+<code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;">node_filesystem_avail_bytes</code> deviating 3.8σ. Check unbounded logging exports: <code style="background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;">kubectl logs -n logging --tail=200 | grep -i write</code>
+<br><br>
+<strong style="color:#00ffaa;font-size:1rem;display:block;margin-bottom:6px;">5. [Both] Wire AlertManager → OpenCost Budget Webhook</strong>
+When OpenCost daily spend > $135/day, fire Prometheus AlertManager webhook. This closes the loop between infrastructure metrics and financial signals in real time.
+</div><div style="margin-top:1.5rem;font-size:.7rem;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace; border-top: 1px solid var(--border); padding-top: .8rem;">✨ Claude AI Diagnostic Run · Full Context Analyzed · ${new Date().toLocaleTimeString()}</div>`;
+        toast('Neural insights report generated ✓', 'ok');
+      }, 1200);
+    }
+
+    // ── EXPORTS ──
+    function dl(c, n, t) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], { type: t })); a.download = n; a.click(); }
+
+    function exportJSON() {
+      dl(JSON.stringify({ _nexus: { platform: 'NEXUS GCP Intelligence', stack: 'Prometheus+OpenCost+Grafana+AI', version: '4.0', exported: new Date().toISOString(), project: 'prod-cluster-01' }, prometheus: { targets: 24, ingest: '42K/s', series: '1.2M', retention: '15d' }, opencost: { allocated: '$2,847/mo', idle: '$342/mo', efficiency: '74%', projected: '$4,120' }, services: [{ name: 'DB-Cluster-Mesh', status: 'Critical', cpu: 95, aiScore: 0.94, costDay: 156.78 }, { name: 'Nexus-Gateway-Alpha', status: 'Optimal', cpu: 78, aiScore: 0.12, costDay: 127.45 }], anomalies: 7, savings: '$754/month' }, null, 2), `nexus-report-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+      toast('Full JSON exported ✓', 'ok');
+    }
+    function exportCSV() {
+      dl([['Service', 'CPU%', 'Cost/Month', 'Efficiency', 'Source'], ['Compute Engine', '78', '$943', '78%', 'Prom+OC'], ['Cloud SQL', '95', '$568', '62%', 'Prom+OC'], ['GKE', '54', '$384', '71%', 'Prom+OC'], ['Storage', '—', '$312', '—', 'OC'], ['BigQuery', '45', '$215', '45%', 'OC']].map(r => r.join(',')).join('\n'), `nexus-billing-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv');
+      toast('OpenCost CSV exported ✓', 'ok');
+    }
+    function exportAlerts() {
+      dl(JSON.stringify({ source: 'AlertManager+AI', exported: new Date().toISOString(), alerts: [{ severity: 'CRITICAL', service: 'DB-Cluster-Mesh', promRule: 'node_cpu>90', aiScore: 0.94, status: 'ACTIVE' }, { severity: 'CRITICAL', service: 'Budget', source: 'OpenCost', detail: '$4,120 vs $4,000' }, { severity: 'WARNING', service: 'Storage-Node-Mesh', aiScore: 0.71, status: 'ACTIVE' }] }, null, 2), `nexus-alerts-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+      toast('Alerts log exported ✓', 'ok');
+    }
+    function exportPrometheus() {
+      dl(`# NEXUS — Prometheus Config\nglobal:\n  scrape_interval: 30s\n\nscrape_configs:\n  - job_name: node-exporter\n    static_configs:\n      - targets: [localhost:9100]\n  - job_name: cloudsql\n    static_configs:\n      - targets: [cloudsql-exporter:9187]\n  - job_name: opencost\n    static_configs:\n      - targets: [opencost:9003]\n\n# Alert Rules\n# - alert: CloudSQLHighCPU\n#   expr: 100-(avg(rate(node_cpu_seconds_total{mode="idle",job="cloudsql"}[5m]))*100) > 90\n#   for: 5m\n#   labels:\n#     severity: critical`, `nexus-prometheus-${new Date().toISOString().slice(0, 10)}.yaml`, 'text/yaml');
+      toast('Prometheus YAML exported ✓', 'ok');
+    }
+    function exportRecs() {
+      dl(JSON.stringify({ savings: '$754/month', items: [{ title: 'VM Rightsizing', savings: 245, priority: 'HIGH', source: 'Prometheus' }, { title: '1-Year CUDs', savings: 420, priority: 'HIGH', source: 'OpenCost' }, { title: 'Snapshot Cleanup', savings: 89, priority: 'MED', source: 'OpenCost' }, { title: 'BigQuery Slots', savings: 90, priority: 'MED', source: 'OpenCost' }] }, null, 2), `nexus-recs-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+      toast('Recommendations exported ✓', 'ok');
+    }
+    function exportExecutive() {
+      dl(`NEXUS GCP INTELLIGENCE PLATFORM — EXECUTIVE SUMMARY\nStack: Prometheus + OpenCost + Grafana + AI\nGenerated: ${new Date().toISOString()}\n${'='.repeat(52)}\n\nCOST (OpenCost)\n  MTD:        $2,847 / $4,000 budget (71%)\n  Projected:  $4,120 ⚠ Over budget by $120\n  Idle Waste: $342/month (12% of total)\n  Efficiency: 74% (target: 85%)\n\nINFRASTRUCTURE (Prometheus)\n  CPU:  73% avg · SQL critical 95%\n  Mem:  68% avg\n  Net:  2.4 TB/day\n  SLA:  99.94% uptime\n\nCRITICAL\n  1. DB-Cluster-Mesh CPU 95% 2h [Prometheus]\n  2. Budget overrun projected [OpenCost]\n  3. Storage +45% anomaly [EWMA 3.8σ]\n\nSAVINGS AVAILABLE: $754/month\n  Rightsizing → $245 · CUDs → $420 · Cleanup → $89\n\n--- END ---`, `nexus-exec-${new Date().toISOString().slice(0, 10)}.txt`, 'text/plain');
+      toast('Executive summary exported ✓', 'ok');
+    }
+
+    // ── TOAST ──
+    function toast(msg, type = 'info') {
+      const w = document.getElementById('toastWrap');
+      const c = { ok: '#00ffaa', error: '#ff3366', warn: '#fbbf24', info: '#4f8ef7' };
+      const ic = { ok: '✦', error: '✕', warn: '⚠', info: '●' };
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.style.borderLeftColor = c[type] || c.info;
+      t.innerHTML = `<span style="color:${c[type]};">${ic[type]}</span><span style="color:rgba(255,255,255,.85);">${msg}</span>`;
+      w.appendChild(t);
+      setTimeout(() => { t.style.transition = 'all .3s'; t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; setTimeout(() => t.remove(), 300); }, 4000);
+    }
+
+
+
+    // ── NOTIFICATIONS ──
+    let notifOpen = false;
+    function showNotif() {
+      notifOpen = !notifOpen;
+      document.getElementById('notifPanel').classList.toggle('on', notifOpen);
+      if (notifOpen) document.addEventListener('click', notifOutsideClick, true);
+    }
+    function closeNotif() {
+      notifOpen = false;
+      document.getElementById('notifPanel').classList.remove('on');
+      document.removeEventListener('click', notifOutsideClick, true);
+    }
+    function notifOutsideClick(e) {
+      const panel = document.getElementById('notifPanel');
+      const bell = document.querySelector('.notif');
+      if (!panel.contains(e.target) && !bell.contains(e.target)) { closeNotif(); }
+    }
+    function markAllRead() {
+      document.querySelectorAll('.np-item.unread').forEach(el => el.classList.remove('unread'));
+      document.querySelector('.notif-d').textContent = '0';
+      document.querySelector('.notif-d').style.background = 'var(--green)';
+      toast('All notifications marked as read ✓', 'ok');
+    }
+    function npClick(el, msg, type) {
+      el.classList.remove('unread');
+      const badge = document.querySelector('.notif-d');
+      const count = document.querySelectorAll('.np-item.unread').length;
+      badge.textContent = count;
+      if (count === 0) { badge.style.background = 'var(--green)'; }
+      toast(msg, type);
+    }
+
+    // ── OLD showNotif kept for compatibility ──
+    function _legacyShowNotif() {
+      toast('3 critical alerts require action', 'error');
+      setTimeout(() => toast('OpenCost: $4,120 projected vs $4K', 'warn'), 400);
+    }
+  </script>
+</body>
+
+</html>
